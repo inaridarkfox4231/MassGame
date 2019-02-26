@@ -19,7 +19,7 @@ let shootNormal = [sfuncN0, sfuncN1, sfuncN2];
 let spiralParallel = [spfuncP0];
 let spiralNormal = [spfuncN0];
 
-const PATTERN_NUM = 3;
+const PATTERN_NUM = 4;
 const COLOR_NUM = 7;
 
 const DIRECT = 0; // orientedFlowの位置指定、直接指定。
@@ -816,7 +816,11 @@ class figure{
   }
   changeColor(x, y, z, w){ // 色が変わるといいね（え？）
     this.myColor = color(x, y, z, w);
-    //console.log(this.myColor);
+    figure.setGraphic(this.graphic, this.myColor, this.figureId); // update.
+  }
+  changeFigure(newFigureId){ // 形が変わる
+    this.figureId = newFigureId;
+    console.log(this.figureId);
     figure.setGraphic(this.graphic, this.myColor, this.figureId); // update.
   }
   static setGraphic(img, myColor, figureId = 0){
@@ -824,16 +828,62 @@ class figure{
     img.clear();
     img.noStroke();
     img.fill(myColor);
-    let r = 10;
     if(figureId === 0){
-      img.rect(20 - r, 20 - r, 2 * r, 2 * r);
-
+      // 正方形
+      img.rect(10, 10, 20, 20);
+      img.fill(255);
+      img.rect(15, 15, 2, 5);
+      img.rect(23, 15, 2, 5);
     }else if(figureId === 1){
-      r *= 1.1;
-      img.ellipse(20, 20, 2 * r, 2 * r);
+      // 星型
+      let outer = rotationSeq(0, -12, 2 * PI / 5, 5, 20, 20);
+      let inner = rotationSeq(0, 6, 2 * PI / 5, 5, 20, 20);
+      for(let i = 0; i < 5; i++){
+        let k = (i + 2) % 5;
+        let l = (i + 3) % 5;
+        img.quad(outer[i].x, outer[i].y, inner[k].x, inner[k].y, 20, 20, inner[l].x, inner[l].y);
+      }
+      img.fill(255);
+      img.rect(15, 17, 2, 5);
+      img.rect(23, 17, 2, 5);
     }else if(figureId === 2){
-      r *= 1.2;
-      img.triangle(20, 20 - 2 * r / Math.sqrt(3), 20 + r, 20 + (r / Math.sqrt(3)), 20 - r, 20 + (r / Math.sqrt(3)));
+      // 三角形
+      img.triangle(20, 20 - 24 / Math.sqrt(3), 32, 20 + (12 / Math.sqrt(3)), 8, 20 + (12 / Math.sqrt(3)));
+      img.fill(255);
+      img.rect(15, 17, 2, 5);
+      img.rect(23, 17, 2, 5);
+    }else if(figureId === 3){
+      // ひしがた
+      img.quad(28, 20, 20, 20 - 10 * Math.sqrt(3), 12, 20, 20, 20 + 10 * Math.sqrt(3));
+      img.fill(255);
+      img.rect(15, 17, 2, 5);
+      img.rect(23, 17, 2, 5);
+    }else if(figureId === 4){
+      // 六角形
+      img.quad(32, 20, 26, 20 - 6 * Math.sqrt(3), 14, 20 - 6 * Math.sqrt(3), 8, 20);
+      img.quad(32, 20, 26, 20 + 6 * Math.sqrt(3), 14, 20 + 6 * Math.sqrt(3), 8, 20);
+      img.fill(255);
+      img.rect(15, 17, 2, 5);
+      img.rect(23, 17, 2, 5);
+    }else if(figureId === 5){
+      // なんか頭ちょろってやつ
+      img.ellipse(20, 20, 20, 20);
+      img.triangle(20, 20, 20 - 5 * Math.sqrt(3), 15, 20, 0);
+      img.fill(255);
+      img.rect(15, 17, 2, 5);
+      img.rect(23, 17, 2, 5);
+    }else if(figureId === 6){
+      // 逆三角形
+      img.triangle(20, 20 + 24 / Math.sqrt(3), 32, 20 - (12 / Math.sqrt(3)), 8, 20 - (12 / Math.sqrt(3)));
+      img.fill(255);
+      img.rect(15, 17, 2, 5);
+      img.rect(23, 17, 2, 5);
+    }else if(figureId === 7){
+      // デフォルト用の円形
+      img.ellipse(20, 20, 20, 20);
+      img.fill(255);
+      img.rect(15, 17, 2, 5);
+      img.rect(23, 17, 2, 5);
     }
   }
   display(pos){
@@ -846,7 +896,7 @@ class figure{
 
 // というわけでrollingFigure.
 class rollingFigure extends figure{
-  constructor(colorId, figureId = 0){
+  constructor(colorId, figureId = 1){
     super(colorId, figureId);
     //this.rotation = random(2 * PI);
     this.rotation = 0; // 0にしよー
@@ -856,7 +906,7 @@ class rollingFigure extends figure{
   display(pos){
     push();
     translate(pos.x, pos.y);
-    this.rotation += 0.1; // これも本来はfigureのupdateに書かないと・・基本的にupdate→drawの原則は破っちゃいけない
+    //this.rotation += 0.1; // これも本来はfigureのupdateに書かないと・・基本的にupdate→drawの原則は破っちゃいけない
     rotate(this.rotation);
     image(this.graphic, -20, -20); // 20x20に合わせる
     pop();
@@ -910,6 +960,33 @@ class activateGimic extends Gimic{
   }
 }
 
+class colorChangeGate extends Gimic{
+  // 色を変化させるギミック
+  constructor(myFlowId, x, y, z, w){
+    super(myFlowId);
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.w = w;
+  }
+  action(_actor){
+    _actor.visual.changeColor(this.x, this.y, this.z, this.w);
+  }
+}
+
+class figureChangeGimic extends Gimic{
+  // 形を変化させるギミック
+  constructor(myFlowId, newFigureId){
+    super(myFlowId);
+    this.newFigureId = newFigureId;
+    console.log('construct');
+  }
+  action(_actor){
+    console.log("発動");
+    _actor.visual.changeFigure(this.newFigureId);
+  }
+}
+
 // flowに装飾をするのが仕事。
 // flowの性質そのものをいじるのが目的ではない。
 // myFlowIdはあくまで発動させるflowの場所を指定するだけで、
@@ -939,8 +1016,8 @@ class entity{
     this.actors = [];
     this.initialGimic = [];  // flow開始時のギミック
     this.completeGimic = []; // flow終了時のギミック
-    this.patternIndex = 2; // うまくいくのかな・・
-    this.patternArray = [createPattern0, createPattern1, createPattern2];
+    this.patternIndex = 3; // うまくいくのかな・・
+    this.patternArray = [createPattern0, createPattern1, createPattern2, createPattern3];
   }
   getFlow(givenIndex){
     for(let i = 0; i < this.flows.length; i++){
@@ -1248,6 +1325,24 @@ function createPattern2(){
   all.registActor(arSeq(0, 1, 36), constSeq(1, 36), constSeq(0, 36)); // 最初は〇から始めてGimicでいじる
   all.activateAll();
 }
+
+function createPattern3(){
+  // テスト用(走らせるだけ)
+  let posX = arSeq(50, 50, 9);
+  let posY = constSeq(100, 9);
+  let vecs = getVector(posX, posY);
+  let pattern = getOrbitalFlow(vecs, arSeq(0, 1, 8), arSeq(1, 1, 8), 'straight');
+  all.registFlow(pattern);
+  all.connectMulti(arSeq(0, 1, 7), [[1], [2], [3], [4], [5], [6], [7]]);
+  // ギミック仕込んでみる？
+  for(let i = 0; i < 8; i++){
+    let g = new figureChangeGimic(i, i);
+    all.completeGimic.push(g);
+  }
+  all.registActor([0], [2], [0]);
+  all.activateAll();
+}
+
 // ---------------------------------------------------------- //
 // MassGame用のベクトルの配列を出す関数
 function getPatternVector(patternIndex){
