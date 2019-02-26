@@ -248,16 +248,11 @@ class orbitalEasingFlow extends easingFlow{
 // あー・・両方一緒だ。
 // Gimicが要らないとは言ってない。使い方が間違ってるってだけ。
 
-// orientedMuzzleの最大の利点、それは「スキのない時間管理」。
-
 // 名前muzzleにしよう
 // mode増やそう。revolveのモード。simple, rect, ellipse, fan, rotation, parallelの6種類
 class orientedMuzzle extends easingFlow{
   constructor(easeId_parallel, easeId_normal, ratio, spanTime, kind, infoVectorArray, mode){
     super(easeId_parallel, easeId_normal, ratio, spanTime);
-    //this.infoVector; // 情報ベクトル
-    //this.kind; // toの指定の仕方（DIRECT:位置を直接指定、DIFF:ベクトルで指定）
-    this.register = [];
     this.kind = kind; // DIRECTなら目標地点ベース、DIFFならベクトルベース
     this.infoVectorArray = infoVectorArray; // 位置だったりベクトルの集合
     this.currentIndex = -1; // simpleはまず1つ進めてからなので初期値を-1にしておかないと。てかsimpleでしか使わないな・・
@@ -312,58 +307,46 @@ class orientedMuzzle extends easingFlow{
   }
   regist(_actor){
     // revolverGimicでこれを呼び出して先に登録しちゃう
-    let dict = {};
-    dict['id'] = _actor.index;
-    dict['from'] = _actor.pos;
+    _actor.info['from'] = _actor.pos;
     let infoVector = this.getInfoVector(); // ベクトルはここで計算する
     if(this.kind === DIRECT){
-      dict['to'] = infoVector;
+      _actor.info['to'] = infoVector;
     }else{
       let toVector = p5.Vector.add(_actor.pos, infoVector);
-      dict['to'] = toVector;
+      _actor.info['to'] = toVector;
     }
-    dict['diffVector'] = this.calcDiffVector(dict['from'], dict['to']);
-    this.register.push(dict);
-    // bulletクラス作ればactorから情報引き出せるけど・・
-  }
-  getIndex(actorId){
-    let correctId = -1;
-    for(let i = 0; i < this.register.length; i++){
-      if(this.register[i]['id'] === actorId){ correctId = i; break; }
-    }
-    return correctId; // -1:Not Found.
-  }
-  delete(actorId){
-    // 登録情報の削除。COMPLETEDの際に呼び出す
-    let correctId = this.getIndex(actorId);
-    this.register.splice(correctId, 1);
+    _actor.info['diffVector'] = this.calcDiffVector(_actor.pos, _actor.info['to']);
   }
   initialize(_actor){
     this.regist(_actor); // 登録
     _actor.timer.reset();
   }
   execute(_actor){
-    let index = this.getIndex(_actor.index);
-    let progress = this.getProgress(_actor); // progressを普通に取得。（-1の指定やめた）
-    // MassGame用にちょっといじるね
-    let easedProgress = parallelFunc[this.easeId_parallel](progress);
-    // 以下の部分は汎用的ではないです
-    if(this.easeId_parallel === 10){
-      easedProgress = parallelFunc[this.easeId_parallel](progress - (_actor.index / 72));
-    }
+    let progress = this.getProgress(_actor); // progressを普通に取得。
+		let easedProgress;
+		// 汎用的でないコードを書きます
+		if(this.easeId_parallel !== 10){
+			easedProgress = parallelFunc[this.easeId_parallel](progress);
+		}else{
+			easedProgress = parallelFunc[this.easeId_parallel](progress - (_actor.index / 72));
+		}
     let normalDiff = normalFunc[this.easeId_normal](progress);
 
-    let fromVector = this.register[index]['from'];
-    let toVector = this.register[index]['to'];
-    let diffVector = this.register[index]['diffVector'];
+    let fromVector = _actor.info['from'];
+    let toVector = _actor.info['to'];
+    let diffVector = _actor.info['diffVector'];
 
     _actor.pos.x = map(easedProgress, 0, 1, fromVector.x, toVector.x);
     _actor.pos.y = map(easedProgress, 0, 1, fromVector.y, toVector.y);
     let easeVectorN = p5.Vector.mult(diffVector, normalDiff);
     _actor.pos.add(easeVectorN);
     if(progress === 1){
+      // completeActionほしい
       _actor.setState(COMPLETED);
-      this.delete(_actor.index); // 完了したら情報を削除
+      // 情報を削除。確かにこれはconvertにもexecuteにも書くべきではないな。
+      delete _actor.info['from'];
+      delete _actor.info['to'];
+      delete _actor.info['diffVector'];
     }
   }
 }
@@ -379,6 +362,7 @@ class actor{
     this.timer = new counter();
     this.isActive = false; // デフォルトをfalseにしてプログラムのインプット時にtrueにする作戦で行く
     this.state = IDLE; // 状態（IDLE, IN_PROGRESS, COMPLETED）
+		this.info = {}; // 各種情報
   }
   activate(){ this.isActive = true; } // isActiveがfalse⇔updateしない。シンプル。これを目指している。
   inActivate(){ this.isActive = false; } // 冗長だけどコードの可読性の為に両方用意する。
@@ -712,7 +696,6 @@ class entity{
   }
   initialize(){
     createMassGame(); // MassGameをCreateする
-    //createTest(); // テスト用。
     this.baseFlows.forEach(function(f){ f.display(this.base); }, this); // ベースグラフの初期化（addは毎ターン）
   }
   reset(){
@@ -850,7 +833,7 @@ function createMassGame(){
   // 最初に中心に固める。半径は120にする。スピードを1にする。
   let vecs = rotationSeq(200, 0, 2 * PI / 36, 36, 300, 300); // 回転sequence.
   vecs.push(createVector(300, 300)); // 中心
-  let paramSet = getOrbitalEasingFlow(vecs, constSeq(0, 36), constSeq(0, 36), constSeq(0, 36), constSeq(120, 36), arSeq(0, 1, 36), constSeq(36, 36)); // 中心にぎゅーっ
+  let paramSet = getOrbitalEasingFlow(vecs, constSeq(6, 36), constSeq(0, 36), constSeq(0, 36), constSeq(120, 36), arSeq(0, 1, 36), constSeq(36, 36)); // 中心にぎゅーっ
   all.registFlow(paramSet);
   // ここがスタートで、最後はこれの次のflowにつなげる。
   // まずrect. 中央の300×300に集めてね。(36)
@@ -948,48 +931,6 @@ function createMassGame(){
   all.activateAll();
 }
 
-function createTest(){
-  // テスト用(走らせるだけ)
-  let posX = arSeq(50, 50, 9);
-  let posY = constSeq(100, 9);
-  let vecs = getVector(posX, posY);
-  let pattern = getOrbitalFlow(vecs, arSeq(0, 1, 8), arSeq(1, 1, 8), 'straight');
-  all.registFlow(pattern);
-  all.connectMulti(arSeq(0, 1, 7), [[1], [2], [3], [4], [5], [6], [7]]);
-  all.registActor([0], [1], [0]);
-
-  // ギミック仕込んでみる？
-  for(let i = 0; i < 8; i++){
-    let g = new figureChangeGimic(i, i);
-    all.completeGimic.push(g);
-  }
-  // カラーコントローラー仕込んでみる
-  posX = [0, 5, 10, 13, 17, 26, 35, 43, 52, 58, 64, 72, 80, 90, 100];
-  posY = [100, 50, 100, 50, 100, 50, 100, 50, 100, 50, 100, 50, 100, 50, 100];
-  vecs = getVector(posX, posY);
-  let spanSet = [24, 25, 24, 25, 24, 25, 24, 25, 24, 25, 24, 25, 24, 25];
-  pattern = getOrbitalEasingFlow(vecs, constSeq(0, 14), constSeq(0, 14), constSeq(0, 14), spanSet, arSeq(0, 1, 14), arSeq(1, 1, 14));
-  all.registFlow(pattern, false);
-  all.flows.push(new waitFlow(50)); // 最後はwaitでいいよ
-  // またつなぐの忘れた。。番号は15本なので8～22ですね。
-  all.connectMulti(arSeq(8, 1, 15), [[9], [10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [8]]);
-  // さっきのは本体の色用。次に背景色のやつ用意する
-  posY = [30, 0, 30, 0, 30, 0, 30, 0, 30, 0, 30, 0, 30, 0, 30];
-  vecs = getVector(posX, posY);
-  pattern = getOrbitalEasingFlow(vecs, constSeq(0, 14), constSeq(0, 14), constSeq(0, 14), spanSet, arSeq(0, 1, 14), arSeq(1, 1, 14));
-  all.registFlow(pattern, false);
-  all.flows.push(new waitFlow(50)); // 最後はwaitで。
-  // つなぐ。15本なので23～37ですね。
-  all.connectMulti(arSeq(23, 1, 15), [[24], [25], [26], [27], [28], [29], [30], [31], [32], [33], [34], [35], [36], [37], [23]]);
-  // どうやるんだっけ（おい）
-  let cc = new colorController(all.getFlow(8), 0, 100, 1)
-  all.actors.push(cc);
-  cc.addTarget(all.actors[0].visual);  // また間違えた、visualを入れるんだった・・
-  let bcc = new backgroundColorController(all.getFlow(23), 0, 50, 1);
-  all.actors.push(bcc);
-
-  all.activateAll();
-}
 // ---------------------------------------------------------- //
 // MassGame用のベクトルの配列を出す関数
 function getPatternVector(patternIndex){
@@ -1199,6 +1140,6 @@ function funcP8(x){ return 0.5 * (1 - cos(9 * PI * x)); } // 波打つやつ
 // 0.5までゆっくりぎゅーんのあと停止
 function funcP9(x){ return min(192 * pow(x, 5) - 240 * pow(x, 4) + 80 * pow(x, 3), 1); }
 // はじめの0.5までで一気に進んでそのあと0.5休む（idで平行移動してディレイに使う）
-function funcP10(x){ return max(0, min(2 * x, 1)); }
+function funcP10(x){ return pow(max(0, min(2 * x, 1)), 3); }
 
 function funcN0(x){ return 0; }
