@@ -1,5 +1,9 @@
 // flowベースでの書き換えをする実験～～
 // 応用：MassGame.
+// 最後、initializeの順番で問題が発生したけど、
+// あれはstraightFlowで距離を近似計算してて、それで誤差が発生して
+// 到達するタイミングがずれて、そのあと全部ズレちゃったのが原因だった。
+// 時間管理に優れたorbitalEasingFlowに取り替えたらうまくいった。ふぅ・・
 
 'use strict';
 let all; // 全体
@@ -8,18 +12,9 @@ let palette; // カラーパレット
 
 // orientedMuzzle用。parallelは[0,1]→[0,1]で、normalは[0,1]上で0から0へみたいな。
 let parallelFunc = [funcP0, funcP1, funcP2, funcP3, funcP4, funcP5, funcP6, funcP7, funcP8, funcP9, funcP10];
-let normalFunc = [funcN0, funcN1];
+let normalFunc = [funcN0];
 
-// shooting用。parallelは基本的に0以上に対して∞まで増大していく感じ、たださほど大きくならない・・
-// normalの方は0付近をうろうろする？まあはじけてもいい、その場合は外れて飛んでいく。
-let shootParallel = [sfuncP0, sfuncP1, sfuncP2];
-let shootNormal = [sfuncN0, sfuncN1, sfuncN2];
-
-// spiral用。中心から自分方向と、逆方向。
-let spiralParallel = [spfuncP0];
-let spiralNormal = [spfuncN0];
-
-const PATTERN_NUM = 2;
+const PATTERN_NUM = 1;
 const COLOR_NUM = 7;
 
 const DIRECT = 0; // orientedFlowの位置指定、直接指定。
@@ -37,7 +32,6 @@ function setup(){
   palette = [color(0, 100, 100), color(10, 100, 100), color(17, 100, 100), color(35, 100, 100), color(52, 100, 100), color(64, 100, 100), color(80, 100, 100)];
   all = new entity();
   all.initialize();
-  //console.log(palette);
 }
 
 function draw(){
@@ -46,32 +40,12 @@ function draw(){
   all.initialGimicAction();  // 初期化前ギミックチェック
   all.completeGimicAction(); // 完了時ギミックチェック
   all.draw();
-  push();
-  fill('red');
-  rect(0, 0, 40, 40);
-  fill('blue')
-  rect(0, 40, 40, 40);
-  fill(0);
-  text('stop', 10, 20);
-  text('start', 10, 60);
-  pop();
 }
 // updateしてからGimicをチェックすると、例えばこういうことが起きる。
 // まず、completeGimicでinActivateするやつを作ると、それを踏んだactorの動きが止まる。
 // インターバルの後、それを解放する何かしらのGimicが発動したとすると、その優先度が最後（後ろの方に配置する）なら、
 // そのあとすぐupdateに行くから解放される。これが逆だと、解放した直後に再びGimicが発動して
 // 動きが止まってしまうので、配置順がすごく大事。
-
-// バリエーションチェンジ
-function mouseClicked(){
-  if(mouseX < 40 && mouseY < 80){
-    if(mouseY < 40){ noLoop(); }
-    else{ loop(); }
-    return;
-  }
-  let newIndex = (all.patternIndex + 1) % PATTERN_NUM;
-  all.switchPattern(newIndex);
-}
 
 // 簡単なものでいいです（簡単になりすぎ）
 class counter{
@@ -86,39 +60,6 @@ class counter{
   }
 } // limitは廃止（使う側が何とかしろ）（てかもうクラスにする意味ないやんな）
 
-class loopCounter extends counter{ // ぐるぐるまわる
-  constructor(period){ // periodは正にしてね
-    super();
-    this.period = period;
-  }
-  step(diff = 1){
-    this.cnt += diff;
-    if(this.cnt > this.period){ this.cnt -= this.period; return true; }
-    return false; // 周回時にtrueを返す（何か処理したいときにどうぞ）
-  }
-}
-class reverseCounter extends counter{ // いったりきたり
-  constructor(interval){
-    super();
-    this.interval = interval;
-    this.signature = 1; // 符号
-  }
-  step(diff = 1){
-    // diffは常に正オッケーです。
-    this.cnt += diff * this.signature;
-    if(this.cnt > this.interval){
-      this.cnt = 2 * this.interval - this.cnt;
-      this.signature *= -1;
-      return true;
-    }else if(this.cnt < 0){
-      this.cnt = -this.cnt;
-      this.signature *= -1;
-      return true;
-    }
-    return false; // 折り返すときにtrueを返す
-  }
-}
-
 // 全部フロー。ただし複雑なconvertはハブにおまかせ～色とかいじれるといいね。今位置情報しかいじってない・・
 class flow{
   constructor(){
@@ -131,7 +72,6 @@ class flow{
     _actor.setState(COMPLETED) // デフォルトはstateをCOMPLETEDにするだけ。こっちはタイミング決めるのはflowですから。
   }
   convert(_actor){
-    //console.log("%d %d", this.index, _actor.index);
     //_actor.setState(IDLE); // IDLEにするのはactor.
     if(this.convertList.length === 0){
       _actor.setFlow(undefined);
@@ -157,15 +97,8 @@ class waitFlow extends flow{
   initialize(_actor){ _actor.timer.reset(); }
   execute(_actor){
     _actor.timer.step(1);
-    //console.log(_actor.timer.getCnt());
     if(_actor.timer.getCnt() >= this.span){ _actor.setState(COMPLETED); } // limitって書いちゃった
   }
-  // これの派生で、たとえば_actor.setState(COMPLETED)の前くらいに、
-  // 「キューの先頭のidをもつactorについてごにょごにょ」
-  // とか書いて、デフォルトは何もしない、にすれば、たとえばそのidをもつactorをactivateするとか、
-  // スピードが上がってるのを戻すとか、色々指示をとっかえひっかえしてできる。
-  // で、使い方としてはそのキューにidぶちこんでcombat走らせるだけだから簡単。
-  // spanで効果時間をいじれるし、combatのスピードを調節すれば効果時間をいじることも・・（未定）
 }
 
 // hubです。位置情報とかは基本なし（あることもある）。複雑なflowの接続を一手に引き受けます。
@@ -189,125 +122,8 @@ class assembleHub extends flow{
     } // 開いてるなら行って良し
   }
 }
-
-class assembleRotaryHub extends assembleHub{
-  // アセンブルハブで、かつcloseのたびに行先が変わる。MassGameなどで重宝する。
-  constructor(limit){
-    super(limit);
-    // -1から始まって0, 1, 2, ..., n-1, 0って感じで。
-  }
-  execute(_actor){
-    if(this.open){
-      _actor.setState(COMPLETED);
-      this.volume--; // 出て行ったら減らす
-      if(this.volume === 0){
-        this.nextFlowIndex = (this.nextFlowIndex + 1) % this.convertList.length; // この一行のみ追加。
-        this.open = false;
-      } // 閉じるタイミングで行先を変える
-    } // 開いてるなら行って良し
-  }
-}
-
-class killHub extends flow{
-  // 殺すだけ
-  constructor(){ super(); }
-  execute(_actor){ _actor.kill(); } // おわり。ギミック処理もできるけどflowにすればvisualも定められるし（位置情報が必要）
-} // 位置やビジュアルを設けるかどうかは個別のプログラムに任せましょう
-
-class colorSortHub extends flow{
-  // 特定の色を1に、それ以外を0に。convertListは0と1のふたつであることを想定している。targetを1に振り分ける。
-  // ごめんなさいid廃止しました・・・
-  constructor(targetColor){
-    super();
-    this.targetColor = targetColor;
-  }
-  convert(_actor){
-    let hueValue = hue(_actor.myColor);
-    let judgeValue = Math.floor(hueValue / 15);
-    if(judgeValue === this.targetColor){
-      this.nextFlowIndex = 1;
-    }else{
-      this.nextFlowIndex = 0;
-    }
-    _actor.setFlow(this.convertList[this.nextFlowIndex]); // 然るべくconvert. おわり。
-  }
-} // そのうち別プロジェクトでやるつもり。
-
-class gateHub extends flow{
-  // gateHubはforLoopを模式化したもので、そこを何回も訪れたactorに別の行先を提供するもの。
-  constructor(norma){
-    super();
-    this.norma = norma; // 必要周回数
-    this.register = []; // 周回数を記録する登録用の配列
-  }
-  getIndex(actorId){
-    // actorIdのactorが登録されているか調べてそのindexを返す、登録されてない時は-1を返す。
-    let index = -1;
-    for(let i = 0; i < this.register.length; i++){
-      if(this.register[i]['id'] === actorId){ index = i; break; }
-    }
-    return index;
-  }
-  convert(_actor){
-    // normaに満たない時は0に、満たすときは1に流す。
-    let index = this.getIndex(_actor.index);
-    if(index < 0){
-      let dict = {id:_actor.index, loopCount:0};
-      this.register.push(dict); // リストにない時は新規登録
-      index = this.register.length - 1; // indexをそのactorの存在番号で更新
-    }else{
-      this.register[index]['loopCount'] += 1; // リストにあるときは周回数を増やす
-    }
-    if(this.register[index]['loopCount'] < this.norma){
-      this.nextFlowIndex = 0;
-    }else{
-      this.nextFlowIndex = 1;
-      // ここにリストからの削除命令
-      this.register.splice(index, 1);
-    }
-    _actor.setFlow(this.convertList[this.nextFlowIndex]);
-  }
-}
-
-// うぁぁ時間無駄にしたショック大きすぎて立ち直れない・・・・・・・・・
-class standardRegenerateHub extends flow{
-  // これを通すと色とか形とかスピードとかもろもろ変化する感じ。
-  constructor(newColorHue = -1, newSpeed = -1, newFigureId = 0){
-    super();
-    this.newColorHue = newColorHue;
-    this.newSpeed = newSpeed;
-    this.newFigureId = newFigureId;
-  }
-  execute(_actor){
-    // -1のときはランダム
-    let colorHue = (this.newColorHue < 0 ? randomInt(100) : this.newColorHue);
-    let speed = (this.newSpeed < 0 ? 2 + random(2) : this.newSpeed);
-    let figureId = this.newFigureId;
-    _actor.myColor = color(colorHue, 100, 100);
-    _actor.setVisual(_actor.myColor, figureId); // あああspeedじゃないいいいいいい
-    _actor.setSpeed(speed);
-    _actor.visual.myColor = _actor.myColor;
-    //_actor.visual.colorId = colorId; // カラーインデックスを更新
-    _actor.activate(); // non-Activeになってるのを想定してもいる
-    _actor.show(); // 消えてるなら姿を現す
-    _actor.setState(COMPLETED); // ここ"COMPLETED"にしてた信じられない
-  }
-}
-// standard. これの他に、サイズとか形とかランダムのやつ作るつもり。とりあえずこれは形とサイズ固定。
-// colorIdでなくcolorを取るようにして移動してる間に特定のcolorめがけてグラデするとかそういうのをね・・
-// posもcolorもactorによってそれを変化させるコンポジションの一部でしかないらしいよ
-
-class rotaryHub extends flow{
-  // actorが通過するたびに最初0, 次1, ...とローテーションで変化する
-  constructor(){
-    super();
-    this.nextFlowIndex = 0; // 次の行先は存在していて0から順に増えていって巡回する
-  }
-  convert(_actor){
-    _actor.setFlow(this.convertList[this.nextFlowIndex]);
-    this.nextFlowIndex = (this.nextFlowIndex + 1) % this.convertList.length;
-  }
-}
+// assembleHub使えばinitializeのタイミングを同期させることができる・・その手もあったけどね。
+// まあ、使い分けよ。
 
 // generateHubは特定のフローに・・あーどうしよかな。んー。。
 // こういうの、なんか別の概念が必要な気がする。convertしないからさ。違うでしょって話。
@@ -337,20 +153,6 @@ class orbitalFlow extends flow{
   }
 }
 
-class jumpFlow extends orbitalFlow{
-  // ジャンプするやつ
-  constructor(from, to){
-    super(from, to);
-    this.span = p5.Vector.dist(from, to);
-  }
-  execute(_actor){
-    let progress = this.getProgress(_actor, _actor.speed);
-    let newX = map(progress, 0, 1, this.from.x, this.to.x);
-    let newY = map(progress, 0, 1, this.from.y, this.to.y) - 2 * this.span * progress * (1 - progress);
-    _actor.setPos(newX, newY);
-  }
-}
-
 class straightFlow extends orbitalFlow{
   constructor(from, to, factor){
     super(from, to);
@@ -377,96 +179,6 @@ class straightFlow extends orbitalFlow{
     gr.pop();
   }
 }
-
-// ejectiveFlowにしよ
-
-// actorを画面外にふっとばす。ふっとばし方によりいろいろ。
-class ejectiveFlow extends flow{
-  constructor(){ super(); }
-  initialize(_actor){
-    _actor.timer.reset(); // resetするだけ
-  }
-  eject(_actor){
-    // 画面外に出たら抹殺
-    if(_actor.pos.x > width || _actor.pos.x < 0 || _actor.pos.y < 0 || _actor.pos.y > height){
-      _actor.setState(COMPLETED);
-      _actor.hide(); // 姿を消す
-    }
-  }
-}
-
-// 放物線を描きながら画面外に消えていく。物理、すごい・・
-class fallFlow extends ejectiveFlow{
-  constructor(speed, distance, maxHeight){ // 速さ、水平最高点到達距離、垂直最高点到達距離
-    super();
-    this.vx = speed; // 水平初速度
-    this.vy = 2 * abs(speed) * maxHeight / distance; // 垂直初速度
-    this.gravity = 2 * pow(speed / distance, 2) * maxHeight; // 重力加速度
-  }
-  execute(_actor){
-    _actor.timer.step(); // カウントは1ずつ増やす
-    let cnt = _actor.timer.getCnt();
-    _actor.pos.x += this.vx;
-    _actor.pos.y -= this.vy - this.gravity * cnt; // これでいいね。物理。
-    this.eject(_actor);
-  }
-}
-
-// 直線的に動きながら消滅. イージング加えるか。
-class shootingFlow extends ejectiveFlow{
-  constructor(v, easeId1, easeId2){
-    super();
-    this.v = v; // 大きさ正規化しないほうが楽しいからこれでいいや
-    this.easeId1 = easeId1;
-    this.easeId2 = easeId2; // めんどくさい・・適当でいいや（え？）
-  }
-  execute(_actor){
-    _actor.timer.step(); // イージングの為のカウンター
-    let cnt = _actor.timer.getCnt();
-    let parallelFactor = shootParallel[this.easeId1](cnt);
-    let normalFactor = shootNormal[this.easeId2](cnt);
-    // ベクトルの方向にとんでく。イージングは縦横両方。
-    _actor.pos.x += (this.v.x * parallelFactor + this.v.y * normalFactor) * _actor.speed;
-    _actor.pos.y += (this.v.y * parallelFactor - this.v.x * normalFactor) * _actor.speed;
-    this.eject(_actor);
-  }
-}
-
-// 中心決まってて、こいつに向かう単位ベクトルにイージングかけて毎ターン足すだけ。ejectはオーバーライド
-// して中心に近くても消えるようにする
-class spiralFlow extends ejectiveFlow{
-  constructor(center, easeId1, easeId2){
-    super();
-    this.center = center; // 中心位置だけでOK. なんかもうめんどくさい。
-    this.easeId1 = easeId1;
-    this.easeId2 = easeId2; // めんどくさい・・適当でいいや（え？）
-  }
-  execute(_actor){
-    _actor.timer.step(); // イージングの為のカウンター
-    let cnt = _actor.timer.getCnt();
-    let parallelFactor = spiralParallel[this.easeId1](cnt);
-    let normalFactor = spiralNormal[this.easeId2](cnt);
-    let v = p5.Vector.sub(_actor.pos, this.center).normalize(); // 中心からこいつに向かう単位ベクトル
-    _actor.pos.x += (v.x * parallelFactor + v.y * normalFactor) * _actor.speed;
-    _actor.pos.y += (v.y * parallelFactor - v.x * normalFactor) * _actor.speed;
-    // たとえばnormalFactorが0ならとんでくしparallelが0なら回る（はず）
-    this.eject(_actor);
-  }
-  eject(_actor){
-    // 画面外に出たら抹殺
-    if(_actor.pos.x > width || _actor.pos.x < 0 || _actor.pos.y < 0 || _actor.pos.y > height){
-      _actor.setState(COMPLETED);
-      _actor.hide(); // 姿を消す
-    }else if(p5.Vector.dist(this.center, _actor.pos) < 10){
-      _actor.setState(COMPLETED);
-      _actor.hide(); // 中心に近い場合
-    }
-  }
-}
-
-// ejectiveはあと獣人いいよねじゃなくて螺旋を描きながら上に向かっていく。
-// 画面外に出た後の処理も同じ？
-
 
 // やっと本題に入れる。2時間もかかったよ。
 // ratioが1より大きい時はずれ幅を直接長さで指定できるようにしたら面白そうね
@@ -555,7 +267,6 @@ class orientedMuzzle extends easingFlow{
     // 銃口を回す
     if(this.revolveMode === 0){ // simple. 1つ進める。reverseは配列を鏡写しで2倍にすればいい。([0, 1 ,2, 3, 2, 1]とか)
       this.currentIndex = (this.currentIndex + 1) % this.infoVectorArray.length;
-      //console.log("%d %d", this.index, this.currentIndex);
       return this.infoVectorArray[this.currentIndex];
     }else if(this.revolveMode === 1){ // rect.
       // [v0, v1]としてv0(左上)からv1(右下)までの範囲に指定する。DIRECTを想定。
@@ -603,7 +314,6 @@ class orientedMuzzle extends easingFlow{
     // revolverGimicでこれを呼び出して先に登録しちゃう
     let dict = {};
     dict['id'] = _actor.index;
-    //console.log("id = %d", _actor.index);
     dict['from'] = _actor.pos;
     let infoVector = this.getInfoVector(); // ベクトルはここで計算する
     if(this.kind === DIRECT){
@@ -630,7 +340,6 @@ class orientedMuzzle extends easingFlow{
   }
   initialize(_actor){
     this.regist(_actor); // 登録
-    //console.log("initialize %d", _actor.index);
     _actor.timer.reset();
   }
   execute(_actor){
@@ -654,7 +363,6 @@ class orientedMuzzle extends easingFlow{
     _actor.pos.add(easeVectorN);
     if(progress === 1){
       _actor.setState(COMPLETED);
-      //console.log("%d %d", _actor.index, _actor.currentFlow.index);
       this.delete(_actor.index); // 完了したら情報を削除
     }
   }
@@ -694,7 +402,6 @@ class actor{
     // IN_PROGRESSのあとすぐにCOMPLETEDにしないことでGimicをはさむ余地を与える.
   }
   idleAction(){
-    console.log("idleAction %d", this.index);
     this.currentFlow.initialize(this); // flowに初期化してもらう
     this.setState(IN_PROGRESS);
   }
@@ -703,7 +410,6 @@ class actor{
   }
   completeAction(){
     this.setState(IDLE);
-    //console.log("completeAction %d", this.index);
     this.currentFlow.convert(this); // ここで行先が定められないと[IDLEかつundefined]いわゆるニートになります（おい）
   }
   kill(){
@@ -800,7 +506,6 @@ class backgroundColorController extends controller{
     super(f, x, y, speed);
   }
   in_progressAction(){
-    //console.log("%d %d %d", this.pos.x, this.pos.y, this.currentFlow.index);
     let thirdValue = brightness(backgroundColor);
     let fourceValue = alpha(backgroundColor);
     this.currentFlow.execute(this); // 実行！この中でsetState(COMPLETED)してもらう
@@ -810,16 +515,6 @@ class backgroundColorController extends controller{
 // むぅぅ。posControllerも作りたい。足し算で挙動に変化を加えるとか。
 
 // たとえば背景をクラス扱いしてそれを形成する色の部分に変化を加えて・・とかできる。
-
-
-// 1つだけflowをこなしたら消える
-class combat extends actor{
-  constructor(f = undefined){
-    super(f);
-    // 1ずつ増えるしvisual要らないしって感じ。
-  }
-  completeAction(){ this.kill(); } // ひとつflowを終えたら消滅
-}
 
 actor.index = 0; // 0, 1, 2, 3, ....
 
@@ -919,7 +614,7 @@ class figure{
   }
 }
 
-// というわけでrollingFigure.
+// というわけでrollingFigure. でもこれじゃswingFigureだな・・swing楽しいけどね。
 class rollingFigure extends figure{
   constructor(colorId, figureId = 1){
     super(colorId, figureId);
@@ -953,36 +648,6 @@ class Gimic{
   completeCheck(_actor, flowId){
     if(_actor.state === COMPLETED && _actor.isActive && flowId === this.myFlowId){ return true; }
     return false;
-  }
-}
-
-// killするだけ.
-class killGimic extends Gimic{
-  constructor(myFlowId){
-    super(myFlowId);
-  }
-  action(_actor){
-    _actor.inActivate();
-    _actor.kill();
-  }
-}
-
-class inActivateGimic extends Gimic{
-  constructor(myFlowId){
-    super(myFlowId);
-  }
-  action(_actor){
-    _actor.inActivate(); // 踏んだ人をinActivateするだけ
-  }
-}
-
-class activateGimic extends Gimic{
-  constructor(myFlowId, targetActorId){
-    super(myFlowId);
-    this.targetActorId = targetActorId;
-  }
-  action(_actor){
-    all.getActor(this.targetActorId).activate(); // ターゲットをactivateする
   }
 }
 
@@ -1020,16 +685,6 @@ class figureChangeGimic extends Gimic{
 // たとえばボードゲームとかで状態異常発生させるとかワープさせる、そういうことに使うんです、これは。
 // 汎用コードだとあんま使い道ないかもね・・
 
-// コードの再利用ができるならこれを複数バージョンに・・って事も出来るんだけどね
-
-// Colosseoっていう、いわゆる紅白戦みたいなやつ作りたいんだけど。なんか、互いに殺しあってどっちが勝つとか。
-// HP設定しといて、攻撃と防御作って、色々。その時にこれで、
-// 攻撃や防御UP,DOWN, HP増減、回復、色々。まあ回復はHub..HubにGimic配置してもいいし。
-// そういうのに使えそうね。
-// キャラビジュアルは黒と白のシンプルな奴にして縦棒で目とか付けて一応ディレクション変更で向きが変わるように、
-// やられたら目がバッテンになって消えるみたいな
-// ダメージの色とか決めて（バー出せたらかっこいいけど）
-
 // flowのupdateとかやりたいわね
 // 使い終わったactorの再利用とかしても面白そう（他のプログラムでやってね）（trash）
 class entity{
@@ -1042,8 +697,6 @@ class entity{
     this.actors = [];
     this.initialGimic = [];  // flow開始時のギミック
     this.completeGimic = []; // flow終了時のギミック
-    this.patternIndex = 0; // うまくいくのかな・・
-    this.patternArray = [createPattern2, createPattern3];
   }
   getFlow(givenIndex){
     for(let i = 0; i < this.flows.length; i++){
@@ -1058,7 +711,7 @@ class entity{
     return undefined;
   }
   initialize(){
-    this.patternArray[this.patternIndex]();
+    createMassGame(); // MassGameをCreateする
     this.baseFlows.forEach(function(f){ f.display(this.base); }, this); // ベースグラフの初期化（addは毎ターン）
   }
   reset(){
@@ -1191,7 +844,7 @@ class entity{
 // --------------------------------------------------------------------------------------- //
 
 // まあ、bulletってクラス作ってfromとtoとdiffVector持たせればいいんだけどね・・
-function createPattern2(){
+function createMassGame(){
   // MassGame本体。
   // 最初に中心に固める。半径は120にする。スピードを1にする。
   let vecs = rotationSeq(200, 0, 2 * PI / 36, 36, 300, 300); // 回転sequence.
@@ -1294,49 +947,6 @@ function createPattern2(){
   all.activateAll();
 }
 
-function createPattern3(){
-  // テスト用(走らせるだけ)
-  let posX = arSeq(50, 50, 9);
-  let posY = constSeq(100, 9);
-  let vecs = getVector(posX, posY);
-  let pattern = getOrbitalFlow(vecs, arSeq(0, 1, 8), arSeq(1, 1, 8), 'straight');
-  all.registFlow(pattern);
-  all.connectMulti(arSeq(0, 1, 7), [[1], [2], [3], [4], [5], [6], [7]]);
-  all.registActor([0], [1], [0]);
-
-  // ギミック仕込んでみる？
-  for(let i = 0; i < 8; i++){
-    let g = new figureChangeGimic(i, i);
-    all.completeGimic.push(g);
-  }
-  // カラーコントローラー仕込んでみる
-  posX = [0, 5, 10, 13, 17, 26, 35, 43, 52, 58, 64, 72, 80, 90, 100];
-  posY = [100, 50, 100, 50, 100, 50, 100, 50, 100, 50, 100, 50, 100, 50, 100];
-  vecs = getVector(posX, posY);
-  let spanSet = [24, 25, 24, 25, 24, 25, 24, 25, 24, 25, 24, 25, 24, 25];
-  pattern = getOrbitalEasingFlow(vecs, constSeq(0, 14), constSeq(0, 14), constSeq(0, 14), spanSet, arSeq(0, 1, 14), arSeq(1, 1, 14));
-  all.registFlow(pattern, false);
-  all.flows.push(new waitFlow(50)); // 最後はwaitでいいよ
-  // またつなぐの忘れた。。番号は15本なので8～22ですね。
-  all.connectMulti(arSeq(8, 1, 15), [[9], [10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [8]]);
-  // さっきのは本体の色用。次に背景色のやつ用意する
-  posY = [30, 0, 30, 0, 30, 0, 30, 0, 30, 0, 30, 0, 30, 0, 30];
-  vecs = getVector(posX, posY);
-  pattern = getOrbitalEasingFlow(vecs, constSeq(0, 14), constSeq(0, 14), constSeq(0, 14), spanSet, arSeq(0, 1, 14), arSeq(1, 1, 14));
-  all.registFlow(pattern, false);
-  all.flows.push(new waitFlow(50)); // 最後はwaitで。
-  // つなぐ。15本なので23～37ですね。
-  all.connectMulti(arSeq(23, 1, 15), [[24], [25], [26], [27], [28], [29], [30], [31], [32], [33], [34], [35], [36], [37], [23]]);
-  // どうやるんだっけ（おい）
-  let cc = new colorController(all.getFlow(8), 0, 100, 1)
-  all.actors.push(cc);
-  cc.addTarget(all.actors[0].visual);  // また間違えた、visualを入れるんだった・・
-  let bcc = new backgroundColorController(all.getFlow(23), 0, 50, 1);
-  all.actors.push(bcc);
-
-  all.activateAll();
-}
-
 // ---------------------------------------------------------- //
 // MassGame用のベクトルの配列を出す関数
 function getPatternVector(patternIndex){
@@ -1349,11 +959,11 @@ function getPatternVector(patternIndex){
   }else if(patternIndex === 1){
     // 星型
     let vecs = [createVector(300, 300)];
-    vecs = vecs.concat(rotationSeq(0, -60, 2 * PI / 5, 5, 300, 300));
-    vecs = vecs.concat(rotationSeq(0, -120, 2 * PI / 5, 5, 300, 300));
-    let d0 = 120 * sin(2 * PI / 10); // 中心から上に向かって辺に突き刺さるまでの距離
-    let d1 = 40 * sin(2 * PI / 10) * tan(2 * PI / 5); // そこからてっぺんまでの距離の1/3.
-    let d2 = 40 * sin(2 * PI / 10);
+    vecs = vecs.concat(rotationSeq(0, -48, 2 * PI / 5, 5, 300, 300));
+    vecs = vecs.concat(rotationSeq(0, -96, 2 * PI / 5, 5, 300, 300));
+    let d0 = 96 * sin(2 * PI / 10); // 中心から上に向かって辺に突き刺さるまでの距離
+    let d1 = 32 * sin(2 * PI / 10) * tan(2 * PI / 5); // そこからてっぺんまでの距離の1/3.
+    let d2 = 32 * sin(2 * PI / 10);
     // segmentを作って2 * PI / 5ずつ回転させてまとめてゲットする
     let posX = [0, d2, 2 * d2, -d2, -2 * d2];
     let posY = [-d0 - 3 * d1, -d0 - 2 * d1, -d0 - d1, -d0 - 2 * d1, -d0 - d1];
@@ -1549,17 +1159,3 @@ function funcP9(x){ return min(192 * pow(x, 5) - 240 * pow(x, 4) + 80 * pow(x, 3
 function funcP10(x){ return max(0, min(2 * x, 1)); }
 
 function funcN0(x){ return 0; }
-function funcN1(x){ return sin(10 * PI * x); }
-
-// 微分. パラメータ取れるようにしよう。
-function sfuncP0(x){ return 1; }
-function sfuncP1(x){ return 0.1 * x; }
-function sfuncP2(x){ return 1 - cos(x); }
-
-function sfuncN0(x){ return 0; }
-function sfuncN1(x){ return 2 * sin(x); }
-function sfuncN2(x){ return (x < 30 ? 1 : 0); } // 3WAYっぽい挙動。
-
-function spfuncP0(x){ return -0.2; }
-
-function spfuncN0(x){ return 1; }
