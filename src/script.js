@@ -711,8 +711,8 @@ class entity{
     return undefined;
   }
   initialize(){
-    //createMassGame(); // MassGameをCreateする
-    createTest(); // テスト用。
+    createMassGame(); // MassGameをCreateする
+    //createTest(); // テスト用。
     this.baseFlows.forEach(function(f){ f.display(this.base); }, this); // ベースグラフの初期化（addは毎ターン）
   }
   reset(){
