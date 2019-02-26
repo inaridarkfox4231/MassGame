@@ -711,7 +711,8 @@ class entity{
     return undefined;
   }
   initialize(){
-    createMassGame(); // MassGameをCreateする
+    //createMassGame(); // MassGameをCreateする
+    createTest(); // テスト用。
     this.baseFlows.forEach(function(f){ f.display(this.base); }, this); // ベースグラフの初期化（addは毎ターン）
   }
   reset(){
@@ -947,6 +948,48 @@ function createMassGame(){
   all.activateAll();
 }
 
+function createTest(){
+  // テスト用(走らせるだけ)
+  let posX = arSeq(50, 50, 9);
+  let posY = constSeq(100, 9);
+  let vecs = getVector(posX, posY);
+  let pattern = getOrbitalFlow(vecs, arSeq(0, 1, 8), arSeq(1, 1, 8), 'straight');
+  all.registFlow(pattern);
+  all.connectMulti(arSeq(0, 1, 7), [[1], [2], [3], [4], [5], [6], [7]]);
+  all.registActor([0], [1], [0]);
+
+  // ギミック仕込んでみる？
+  for(let i = 0; i < 8; i++){
+    let g = new figureChangeGimic(i, i);
+    all.completeGimic.push(g);
+  }
+  // カラーコントローラー仕込んでみる
+  posX = [0, 5, 10, 13, 17, 26, 35, 43, 52, 58, 64, 72, 80, 90, 100];
+  posY = [100, 50, 100, 50, 100, 50, 100, 50, 100, 50, 100, 50, 100, 50, 100];
+  vecs = getVector(posX, posY);
+  let spanSet = [24, 25, 24, 25, 24, 25, 24, 25, 24, 25, 24, 25, 24, 25];
+  pattern = getOrbitalEasingFlow(vecs, constSeq(0, 14), constSeq(0, 14), constSeq(0, 14), spanSet, arSeq(0, 1, 14), arSeq(1, 1, 14));
+  all.registFlow(pattern, false);
+  all.flows.push(new waitFlow(50)); // 最後はwaitでいいよ
+  // またつなぐの忘れた。。番号は15本なので8～22ですね。
+  all.connectMulti(arSeq(8, 1, 15), [[9], [10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [8]]);
+  // さっきのは本体の色用。次に背景色のやつ用意する
+  posY = [30, 0, 30, 0, 30, 0, 30, 0, 30, 0, 30, 0, 30, 0, 30];
+  vecs = getVector(posX, posY);
+  pattern = getOrbitalEasingFlow(vecs, constSeq(0, 14), constSeq(0, 14), constSeq(0, 14), spanSet, arSeq(0, 1, 14), arSeq(1, 1, 14));
+  all.registFlow(pattern, false);
+  all.flows.push(new waitFlow(50)); // 最後はwaitで。
+  // つなぐ。15本なので23～37ですね。
+  all.connectMulti(arSeq(23, 1, 15), [[24], [25], [26], [27], [28], [29], [30], [31], [32], [33], [34], [35], [36], [37], [23]]);
+  // どうやるんだっけ（おい）
+  let cc = new colorController(all.getFlow(8), 0, 100, 1)
+  all.actors.push(cc);
+  cc.addTarget(all.actors[0].visual);  // また間違えた、visualを入れるんだった・・
+  let bcc = new backgroundColorController(all.getFlow(23), 0, 50, 1);
+  all.actors.push(bcc);
+
+  all.activateAll();
+}
 // ---------------------------------------------------------- //
 // MassGame用のベクトルの配列を出す関数
 function getPatternVector(patternIndex){
