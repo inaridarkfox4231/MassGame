@@ -271,21 +271,19 @@ class gateHub extends flow{
 // うぁぁ時間無駄にしたショック大きすぎて立ち直れない・・・・・・・・・
 class standardRegenerateHub extends flow{
   // これを通すと色とか形とかスピードとかもろもろ変化する感じ。
-  constructor(newColorHue = -1, newSpeed = -1, newFigureId = 0, newSizeFactor = 0.8){
+  constructor(newColorHue = -1, newSpeed = -1, newFigureId = 0){
     super();
     this.newColorHue = newColorHue;
     this.newSpeed = newSpeed;
     this.newFigureId = newFigureId;
-    this.newSizeFactor = newSizeFactor;
   }
   execute(_actor){
     // -1のときはランダム
     let colorHue = (this.newColorHue < 0 ? randomInt(100) : this.newColorHue);
     let speed = (this.newSpeed < 0 ? 2 + random(2) : this.newSpeed);
     let figureId = this.newFigureId;
-    let sizeFactor = this.sizeFactor;
     _actor.myColor = color(colorHue, 100, 100);
-    _actor.setVisual(_actor.myColor, figureId, sizeFactor); // あああspeedじゃないいいいいいい
+    _actor.setVisual(_actor.myColor, figureId); // あああspeedじゃないいいいいいい
     _actor.setSpeed(speed);
     _actor.visual.myColor = _actor.myColor;
     //_actor.visual.colorId = colorId; // カラーインデックスを更新
@@ -707,11 +705,11 @@ class actor{
 
 // 色や形を与えられたactor. ビジュアル的に分かりやすいので今はこれしか使ってない。
 class movingActor extends actor{
-  constructor(f = undefined, speed = 1, colorId = 0, figureId = 0, sizeFactor = 0.8){
+  constructor(f = undefined, speed = 1, colorId = 0, figureId = 0){
     super(f);
     this.pos = createVector(-100, -100); // flowが始まれば勝手に・・って感じ。
     this.myColor = color(hue(palette[colorId]), saturation(palette[colorId]), 100); // 自分の色。
-    this.visual = new rollingFigure(this.myColor, figureId, sizeFactor); // 回転する図形
+    this.visual = new rollingFigure(this.myColor, figureId); // 回転する図形
     this.speed = speed; // 今の状況だとスピードも要るかな・・クラスとして分離するかは要相談（composition）
     this.visible = true;
   }
@@ -726,8 +724,8 @@ class movingActor extends actor{
     this.speed = newSpeed;
   }
   // 今ここにsetVisualを作りたい。色id, サイズとか形とか。
-  setVisual(newColorId, newFigureId, newSizeFactor){
-    this.visual.reset(newColorId, newFigureId, newSizeFactor);
+  setVisual(newColorId, newFigureId){
+    this.visual.reset(newColorId, newFigureId);
   }
   show(){ this.visible = true; }   // 姿を現す
   hide(){ this.visible = false; }  // 消える
@@ -804,31 +802,32 @@ actor.index = 0; // 0, 1, 2, 3, ....
 // やることは図形を表示させること、回転はオプションかな・・
 // たとえばアイテムとか、オブジェクト的な奴とか。回転しないことも考慮しないとなぁ。
 class figure{
-  constructor(myColor, figureId = 0, sizeFactor = 0.8){
+  constructor(myColor, figureId = 0){
     this.myColor = myColor; // 色クラス使いまーす
     // shootingGameの方でもグラデ使いたいんだけどどうすっかなー、ま、どうにでもできるか。
     // こういうのどうにでもできる強さがあればいいんじゃない？はやいとこ色々作りたいよ。
     this.figureId = figureId; // 図形のタイプ
-    this.sizeFactor = sizeFactor; // おおきさ
     this.graphic = createGraphics(40, 40);
     //inputGraphic(this.graphic, colorId);
-    figure.setGraphic(this.graphic, this.myColor, figureId, sizeFactor);
+    figure.setGraphic(this.graphic, this.myColor, figureId);
   }
-  reset(newColor, newFigureId, newSizeFactor){
-    figure.setGraphic(this.graphic, newColor, newFigureId, newSizeFactor);
+  reset(newColor, newFigureId){
+    figure.setGraphic(this.graphic, newColor, newFigureId);
   }
   changeColor(x, y, z, w){ // 色が変わるといいね（え？）
     this.myColor = color(x, y, z, w);
     //console.log(this.myColor);
-    figure.setGraphic(this.graphic, this.myColor, this.figureId, this.sizeFactor); // update.
+    figure.setGraphic(this.graphic, this.myColor, this.figureId); // update.
   }
-  static setGraphic(img, myColor, figureId = 0, sizeFactor = 0.8){
+  static setGraphic(img, myColor, figureId = 0){
+    // 形のバリエーション増やす
     img.clear();
     img.noStroke();
     img.fill(myColor);
-    let r = 10 * sizeFactor;
+    let r = 10;
     if(figureId === 0){
       img.rect(20 - r, 20 - r, 2 * r, 2 * r);
+
     }else if(figureId === 1){
       r *= 1.1;
       img.ellipse(20, 20, 2 * r, 2 * r);
@@ -847,8 +846,8 @@ class figure{
 
 // というわけでrollingFigure.
 class rollingFigure extends figure{
-  constructor(colorId, figureId = 0, sizeFactor = 0.8){
-    super(colorId, figureId, sizeFactor);
+  constructor(colorId, figureId = 0){
+    super(colorId, figureId);
     //this.rotation = random(2 * PI);
     this.rotation = 0; // 0にしよー
   }
@@ -988,11 +987,11 @@ class entity{
       this.actors.push(newActor);
     }
   }
-  registDetailedActor(flowIds, speeds, colorIds, figureIds, sizeIds){
+  registDetailedActor(flowIds, speeds, colorIds, figureIds){
     // 個別に形とか大きさとか指定する
     for(let i = 0; i < flowIds.length; i++){
       let f = this.getFlow(flowIds[i]);
-      let newActor = new movingActor(f, speeds[i], colorIds[i], figureIds[i], sizeIds[i]);
+      let newActor = new movingActor(f, speeds[i], colorIds[i], figureIds[i]);
       this.actors.push(newActor);
     }
   }
@@ -1193,24 +1192,59 @@ function createPattern2(){
   all.registFlow(paramSet, false);
   // ここがスタートで、最後はこれの次のflowにつなげる。
   // まずrect. 中央の400×400に集めてね。
-  let randomFlow0 = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, [createVector(100, 100), createVector(500, 500)], 1);
-  all.flows.push(randomFlow0);
+  let randomFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, [createVector(100, 100), createVector(500, 500)], 1);
+  all.flows.push(randomFlow);
   all.connectMulti(arSeq(0, 1, 36), constSeq([36], 36)); // つなげる
   // 次に、正方形。順番を工夫して螺旋を描くようにする。
   vecs = getPatternVector(0); // 正方形
   // 登録
-  let patternFlow0 = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0); // simple.
-  all.flows.push(patternFlow0);
-  all.connectMulti([36], [[37]]);
+  let patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0); // simple.
+  all.flows.push(patternFlow);
   // 次に、中心(300, 300)で半径200の円に集めてね。
-  let randomFlow1 = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, [createVector(300, 300), createVector(200, 200)], 2);
-  all.flows.push(randomFlow1);
-  all.connectMulti([37], [[38]]);
+  randomFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, [createVector(300, 300), createVector(200, 200)], 2);
+  all.flows.push(randomFlow);
   // 次に星型。
   vecs = getPatternVector(1); // 星型
-  let patternFlow1 = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0); // simple.
-  all.flows.push(patternFlow1);
-  all.connectMulti([38], [[39]]);
+  patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0); // simple.
+  all.flows.push(patternFlow);
+  // 次に十字型(インターバル)。
+  vecs = getPatternVector(2);
+  patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0);
+  all.flows.push(patternFlow);
+  // 次に三角形。
+  vecs = getPatternVector(3);
+  patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0);
+  all.flows.push(patternFlow);
+  // 横長rectランダム。
+  randomFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, [createVector(100, 200), createVector(500, 400)], 1);
+  all.flows.push(randomFlow);
+  // ひし形4つ。
+  vecs = getPatternVector(4);
+  patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0);
+  all.flows.push(patternFlow);
+  // 縦長ランダム
+  randomFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, [createVector(200, 100), createVector(400, 500)], 1);
+  all.flows.push(randomFlow);
+  // 六角形
+  vecs = getPatternVector(5);
+  patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0);
+  all.flows.push(patternFlow);
+  // たて直線
+  patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, getVector(constSeq(300, 36), arSeq(125, 10, 36)), 0);
+  all.flows.push(patternFlow);
+  // らせん
+  vecs = getPatternVector(6);
+  patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0);
+  all.flows.push(patternFlow);
+  // よこ直線
+  patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, getVector(arSeq(125, 10, 36), constSeq(300, 36)), 0);
+  all.flows.push(patternFlow);
+  // 円周
+  vecs = getPatternVector(7);
+  patternFlow = new orientedMuzzle(0, 0, 0.1, 120, DIRECT, vecs, 0);
+  all.flows.push(patternFlow);
+  all.connectMulti([36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], [[37], [38], [39], [40], [41], [42], [43], [44], [45], [46], [47], [48], [49], [36]]); // 最初に戻る
+
   all.registActor(arSeq(0, 1, 36), constSeq(1, 36), constSeq(0, 36)); // 最初は〇から始めてGimicでいじる
   all.activateAll();
 }
@@ -1231,13 +1265,56 @@ function getPatternVector(patternIndex){
     let d0 = 120 * sin(2 * PI / 10); // 中心から上に向かって辺に突き刺さるまでの距離
     let d1 = 40 * sin(2 * PI / 10) * tan(2 * PI / 5); // そこからてっぺんまでの距離の1/3.
     let d2 = 40 * sin(2 * PI / 10);
-    vecs = vecs.concat(rotationSeq(0, -d0 - 3 * d1, 2 * PI / 5, 5, 300, 300));
-    vecs = vecs.concat(rotationSeq(d2, -d0 - 2 * d1, 2 * PI / 5, 5, 300, 300));
-    vecs = vecs.concat(rotationSeq(2 * d2, -d0 - d1, 2 * PI / 5, 5, 300, 300));
-    vecs = vecs.concat(rotationSeq(-d2, -d0 - 2 * d1, 2 * PI / 5, 5, 300, 300));
-    vecs = vecs.concat(rotationSeq(-2 * d2, -d0 - d1, 2 * PI / 5, 5, 300, 300));
-    console.log(vecs.length);
+    // segmentを作って2 * PI / 5ずつ回転させてまとめてゲットする
+    let posX = [0, d2, 2 * d2, -d2, -2 * d2];
+    let posY = [-d0 - 3 * d1, -d0 - 2 * d1, -d0 - d1, -d0 - 2 * d1, -d0 - d1];
+    let segmentVecs = getVector(posX, posY);
+    let aroundVecs = multiRotationSeq(segmentVecs, 2 * PI / 5, 5, 300, 300);
+    vecs = vecs.concat(aroundVecs);
     return vecs;
+  }else if(patternIndex === 2){
+    // 十字型
+    let posX = jointSeq([arSeq(320, 40, 5), constSeq(320, 4), constSeq(280, 5), arSeq(240, -40, 4), arSeq(280, -40, 5), constSeq(280, 4), constSeq(320, 5), arSeq(360, 40, 4)]);
+    let posY = jointSeq([constSeq(320, 5), arSeq(360, 40, 4), arSeq(320, 40, 5), constSeq(320, 4), constSeq(280, 5), arSeq(240, -40, 4), arSeq(280, -40, 5), constSeq(280, 4)]);
+    return getVector(posX, posY);
+  }else if(patternIndex === 3){
+    // 三角形
+    let x, y;
+    let vecs = [];
+    for(let i = 0; i < 8; i++){
+      x = 300 - 15 * Math.sqrt(3) * i;
+      y = 90 + 45 * i;
+      vecs.push(createVector(x, y));
+      for(let k = 0; k < i; k++){
+        x += 30 * Math.sqrt(3);
+        vecs.push(createVector(x, y));
+      }
+    }
+    return vecs;
+  }else if(patternIndex === 4){
+    // ひし形4つ。
+    let r = 20 * Math.sqrt(3);
+    let posX = [0, 20, -20, 40, 0, -40, 20, -20, 0];
+    let posY = [40, 40 + r, 40 + r, 40 + 2 * r, 40 + 2 * r, 40 + 2 * r, 40 + 3 * r, 40 + 3 * r, 40 + 4 * r];
+    let segmentVecs = getVector(posX, posY);
+    return multiRotationSeq(segmentVecs, PI / 2, 4, 300, 300);
+  }else if(patternIndex === 5){
+    // 六角形
+    let r = 20 * Math.sqrt(3);
+    let posX = [r, 0, 2 * r, -r, r, 3 * r];
+    let posY = [60, 120, 120, 180, 180, 180];
+    let segmentVecs = getVector(posX, posY);
+    return multiRotationSeq(segmentVecs, PI / 3, 6, 300, 300);
+  }else if(patternIndex === 6){
+    // らせん
+    let vecs = [];
+    for(let k = 1; k <= 36; k++){
+      vecs.push(createVector(300 + (30 + 6 * k) * cos((2 * PI / 15) * k), 300 + (30 + 6 * k) * sin((2 * PI / 15) * k)));
+    }
+    return vecs;
+  }else if(patternIndex === 7){
+    // 円周（最後）
+    return getVector(arSinSeq(0, 2 * PI / 36, 36, 200, 300), arCosSeq(0, 2 * PI / 36, 36, 200, 300));
   }
 }
 
@@ -1305,6 +1382,16 @@ function rotationSeq(x, y, angle, n, centerX = 0, centerY = 0){
     array.push(createVector(vec.x + centerX, vec.y + centerY));
   }
   return array;
+}
+
+function multiRotationSeq(array, angle, n, centerX = 0, centerY = 0){
+  // arrayの中身をすべて然るべくrotationしたものの配列を返す
+  let finalArray = [];
+  array.forEach(function(vec){
+    let rotArray = rotationSeq(vec.x, vec.y, angle, n, centerX, centerY);
+    finalArray = finalArray.concat(rotArray);
+  })
+  return finalArray;
 }
 
 function randomInt(n){
