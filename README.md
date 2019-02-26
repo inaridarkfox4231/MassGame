@@ -1,0 +1,2 @@
+# MassGame
+MassGame用にリポジトリ
