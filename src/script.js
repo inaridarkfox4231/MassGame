@@ -936,10 +936,10 @@ function createMassGame(){
 function getPatternVector(patternIndex){
   if(patternIndex === 0){
     // 正方形
-    let posX = jointSeq([arSeq(150, 60, 5), constSeq(450, 5), arSeq(450, -60, 5), constSeq(150, 5), arSeq(210, 60, 3), constSeq(390, 3), arSeq(390, -60, 3), constSeq(210, 3), [270, 330, 330, 270]]);
-    let posY = jointSeq([constSeq(150, 5), arSeq(150, 60, 5), constSeq(450, 5), arSeq(450, -60, 5), constSeq(210, 3), arSeq(210, 60, 3), constSeq(390, 3), arSeq(390, -60, 3), [270, 270, 330, 330]]);
+    let posX = multiSeq(arSeq(150, 60, 6), 6);
+    let posY = jointSeq([constSeq(150, 6), constSeq(210, 6), constSeq(270, 6), constSeq(330, 6), constSeq(390, 6), constSeq(450, 6)]);
     let vecs = getVector(posX, posY);
-    return vecs;
+    return commandShuffle(vecs, [0, 1, 6, 12, 7, 2, 3, 8, 13, 18, 24, 19, 14, 9, 4, 5, 10, 15, 20, 25, 30, 31, 26, 21, 16, 11, 17, 22, 27, 32, 33, 28, 23, 29, 34, 35]);
   }else if(patternIndex === 1){
     // 星型
     let vecs = [createVector(300, 300)];
@@ -954,12 +954,13 @@ function getPatternVector(patternIndex){
     let segmentVecs = getVector(posX, posY);
     let aroundVecs = multiRotationSeq(segmentVecs, 2 * PI / 5, 5, 300, 300);
     vecs = vecs.concat(aroundVecs);
-    return vecs;
+    return commandShuffle(vecs, [11, 26, 16, 31, 21, 15, 20, 25, 8, 9, 32, 27, 12, 30, 3, 4, 17, 35, 7, 2, 0, 5, 10, 22, 24, 1, 33, 19, 6, 28, 14, 29, 34, 23, 18, 13]);
   }else if(patternIndex === 2){
     // 十字型
-    let posX = jointSeq([arSeq(320, 40, 5), constSeq(320, 4), constSeq(280, 5), arSeq(240, -40, 4), arSeq(280, -40, 5), constSeq(280, 4), constSeq(320, 5), arSeq(360, 40, 4)]);
-    let posY = jointSeq([constSeq(320, 5), arSeq(360, 40, 4), arSeq(320, 40, 5), constSeq(320, 4), constSeq(280, 5), arSeq(240, -40, 4), arSeq(280, -40, 5), constSeq(280, 4)]);
-    return getVector(posX, posY);
+    let posX = jointSeq([arSeq(120, 40, 4), arSeq(120, 40, 4), constSeq(280, 10), constSeq(320, 10), arSeq(360, 40, 4), arSeq(360, 40, 4)]);
+    let posY = jointSeq([constSeq(280, 4), constSeq(320, 4), arSeq(120, 40, 10), arSeq(120, 40, 10), constSeq(280, 4), constSeq(320, 4)]);
+    let vecs = getVector(posX, posY);
+    return commandShuffle(vecs, [17, 27, 26, 16, 15, 25, 24, 14, 13, 7, 6, 5, 4, 23, 32, 33, 34, 35, 12, 3, 2, 1, 0, 22, 28, 29, 30, 31, 11, 21, 20, 10, 9, 19, 18, 8]);
   }else if(patternIndex === 3){
     // 三角形
     let x, y;
@@ -980,14 +981,16 @@ function getPatternVector(patternIndex){
     let posX = [0, 20, -20, 40, 0, -40, 20, -20, 0];
     let posY = [40, 40 + r, 40 + r, 40 + 2 * r, 40 + 2 * r, 40 + 2 * r, 40 + 3 * r, 40 + 3 * r, 40 + 4 * r];
     let segmentVecs = getVector(posX, posY);
-    return multiRotationSeq(segmentVecs, PI / 2, 4, 300, 300);
+    let vecs = multiRotationSeq(segmentVecs, PI / 2, 4, 300, 300);
+    return commandShuffle(vecs, [33, 29, 25, 13, 17, 21, 9, 5, 1, 2, 6, 14, 0, 8, 20, 10, 18, 26, 4, 16, 28, 22, 30, 34, 12, 24, 32, 3, 7, 11, 23, 19, 15, 27, 31, 35]);
   }else if(patternIndex === 5){
     // 六角形
     let r = 20 * Math.sqrt(3);
     let posX = [r, 0, 2 * r, -r, r, 3 * r];
     let posY = [60, 120, 120, 180, 180, 180];
     let segmentVecs = getVector(posX, posY);
-    return multiRotationSeq(segmentVecs, PI / 3, 6, 300, 300);
+    let vecs = multiRotationSeq(segmentVecs, PI / 3, 6, 300, 300);
+    return commandShuffle(vecs, [35, 29, 23, 30, 24, 12, 11, 17, 22, 28, 10, 5, 0, 6, 18, 31, 13, 1, 4, 16, 34, 21, 9, 3, 2, 7, 25, 19, 14, 8, 15, 27, 33, 20, 26, 32]);
   }else if(patternIndex === 6){
     // らせん
     let vecs = [];
@@ -1088,6 +1091,22 @@ function getVector(posX, posY){
     vecs.push(createVector(posX[i], posY[i]));
   }
   return vecs;
+}
+
+function commandShuffle(array, sortArray){
+  // arrayを好きな順番にして返す。たとえばsortArrayが[0, 3, 2, 1]なら[array[0], array[3], array[2], array[1]].
+  let newArray = [];
+  for(let i = 0; i < array.length; i++){
+    newArray.push(array[sortArray[i]]);
+  }
+  return newArray; // もちろんだけどarrayとsortArrayの長さは同じでsortArrayは0~len-1のソートでないとエラーになる
+}
+
+function reverseShuffle(array){
+  // 通常のリバース。
+  let newArray = [];
+  for(let i = 0; i < array.length; i++){ newArray.push(array[array.length - i - 1]); }
+  return newArray;
 }
 
 // OrbitalFlow用の辞書作るよー
