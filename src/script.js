@@ -196,6 +196,39 @@ class orbitalFlow extends flow{
   }
 }
 
+// 一定のspanでA地点からB地点まで。あると非常ーーーーーーーーーに便利。
+class constantFlow extends flow{
+  constructor(from, to, spanTime){
+    super();
+    this.from = from;
+    this.to = to;
+    this.spanTime = spanTime;
+  }
+  initialize(_actor){
+    _actor.setPos(this.from.x, this.from.y); // 初期位置与える。
+    _actor.timer.reset();
+  }
+  getProgress(_actor){
+    _actor.timer.step(); // 1ずつ増やす
+    let cnt = _actor.timer.getCnt();
+    if(cnt >= this.spanTime){ return 1; } // 1を返す
+    return cnt / this.spanTime; // 1を返すときcompleteになるよう修正
+  }
+  execute(_actor){
+    // 直線
+    let progress = this.getProgress(_actor);
+    _actor.setPos(map(progress, 0, 1, this.from.x, this.to.x), map(progress, 0, 1, this.from.y, this.to.y));
+    if(progress === 1){ _actor.setState(COMPLETED); }
+  }
+  display(gr){
+    // 線を引くだけ
+    gr.push();
+    gr.strokeWeight(1.0);
+    gr.line(this.from.x, this.from.y, this.to.x, this.to.y); // 普通の線
+    gr.pop();
+  }
+}
+
 class straightFlow extends orbitalFlow{
   constructor(from, to, factor){
     super(from, to);
@@ -890,7 +923,16 @@ class entity{
 }
 
 // --------------------------------------------------------------------------------------- //
-
+function createMassGameNew(){
+  let vecs = getVector([100, 123, 221], [231, 113, 98]);
+  let f0 = new constantFlow(vecs[0], vecs[1], 120);
+  let f1 = new constantFlow(vecs[1], vecs[2], 120);
+  all.flows = all.flows.concat([f0, f1]);
+  all.connectMulti([0], [[1]]);
+  all.registActor([0], [1], [0]);
+  all.activateAll();
+}
+/*
 function createMassGameNew(){
   // もういちどMassGame.
   // 基本は整流 → orientedMuzzle → assemble → wait. これの繰り返し。
@@ -934,7 +976,7 @@ function createMassGameNew(){
   all.activateAll();
   let firstPos = getVector(arSinSeq(0, 2 * PI / 36, 36, 100, 300), arCosSeq(0, 2 * PI / 36, 36, 100, 300));
   for(let i = 0; i < 36; i++){ all.actors[i].setPos(firstPos[i].x, firstPos[i].y); }
-}
+}*/
 
 // まあ、bulletってクラス作ってfromとtoとdiffVector持たせればいいんだけどね・・
 function createMassGame(){
