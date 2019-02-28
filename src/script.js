@@ -888,6 +888,8 @@ class entity{
       return new orientedMuzzle(params['easeId1'], params['easeId2'], params['ratio'], params['spanTime'], params['kind'], params['infoVectorArray'], params['mode']);
     }else if(params['type'] === 'vector'){
       return new vectorFlow(params['easeId1'], params['easeId2'], params['ratio'], params['spanTime'], params['directionVector']);
+    }else if(params['type'] === 'constant'){
+      return new constantFlow(params['from'], params['to'], params['spanTime']);
     }
   }
   initialGimicAction(){
@@ -925,9 +927,8 @@ class entity{
 // --------------------------------------------------------------------------------------- //
 function createMassGameNew(){
   let vecs = getVector([100, 123, 221], [231, 113, 98]);
-  let f0 = new constantFlow(vecs[0], vecs[1], 120);
-  let f1 = new constantFlow(vecs[1], vecs[2], 120);
-  all.flows = all.flows.concat([f0, f1]);
+  let paramSet = getConstantFlow(vecs, [0, 1], [1, 2], [60, 80]);
+  all.registFlow(paramSet);
   all.connectMulti([0], [[1]]);
   all.registActor([0], [1], [0]);
   all.activateAll();
@@ -1266,6 +1267,16 @@ function getOrbitalFlow(vecs, fromIds, toIds, typename, allOne = true){
   for(let i = 0; i < fromIds.length; i++){
     let dict = {type: typename, from: vecs[fromIds[i]], to: vecs[toIds[i]]};
     if(allOne){ dict['factor'] = 1; } // factorをすべて1にするオプション
+    paramSet.push(dict);
+  }
+  return paramSet;
+}
+
+// constantFlow用の辞書配列作成関数
+function getConstantFlow(vecs, fromIds, toIds, spanTimes){
+  let paramSet = [];
+  for(let i = 0; i < fromIds.length; i++){
+    let dict = {type: 'constant', from: vecs[fromIds[i]], to: vecs[toIds[i]], spanTime: spanTimes[i]}
     paramSet.push(dict);
   }
   return paramSet;
