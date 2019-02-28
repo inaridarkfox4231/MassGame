@@ -32,6 +32,7 @@ function setup(){
   palette = [color(0, 100, 100), color(10, 100, 100), color(17, 100, 100), color(35, 100, 100), color(52, 100, 100), color(64, 100, 100), color(80, 100, 100)];
   all = new entity();
   all.initialize();
+  console.log(frameCount);
 }
 
 function draw(){
@@ -46,6 +47,14 @@ function draw(){
 // インターバルの後、それを解放する何かしらのGimicが発動したとすると、その優先度が最後（後ろの方に配置する）なら、
 // そのあとすぐupdateに行くから解放される。これが逆だと、解放した直後に再びGimicが発動して
 // 動きが止まってしまうので、配置順がすごく大事。
+
+function mouseClicked(){
+  if(mouseX < 40 && mouseY < 80){
+    if(mouseY < 40){ noLoop(); }
+    else{ loop(); }
+    return;
+  }
+}
 
 // 簡単なものでいいです（簡単になりすぎ）
 class counter{
@@ -98,7 +107,13 @@ class waitFlow extends flow{
   initialize(_actor){ _actor.timer.reset(); }
   execute(_actor){
     _actor.timer.step(1);
-    if(_actor.timer.getCnt() >= this.span){ _actor.setState(COMPLETED); } // limitって書いちゃった
+    if(_actor.timer.getCnt() >= this.span){
+      console.log("%d for waitMotion.", frameCount);
+      _actor.setState(COMPLETED);
+    } // limitって書いちゃった
+  }
+  setting(dict){
+    this.span = dict['span'];
   }
 }
 
@@ -132,15 +147,21 @@ class rectifierHub extends flow{
     this.open = true;
   }
   execute(_actor){
+    if(this.interval === 0){ console.log("%d for rectifier", frameCount); _actor.setState(COMPLETED); return; } // intervalに0を入れると無効化できる
     if(this.open){
+      console.log("%d for rectifier", frameCount);
       _actor.setState(COMPLETED);
       this.open = false;
-      this.timer.reset();
     }
   }
   update(){
-    this.timer.step();
-    if(this.timer.getCnt() >= this.interval){ this.open = true; }
+    if(this.interval === 0){ return; }
+    if(!this.open){ this.timer.step(); } // closeのときだけ進める
+    if(this.timer.getCnt() >= this.interval){ this.open = true; this.timer.reset(); }
+  }
+  setting(dict){
+    this.interval = dict['interval'];
+    this.open = true; // 再設定！
   }
 }
 
@@ -380,6 +401,7 @@ class orientedMuzzle extends easingFlow{
     this.spanTime = dict['spanTime'];
     this.kind = dict['kind'];
     this.infoVectorArray = dict['infoVectorArray'];
+    this.currentIndex = 0; // リセット
     this.revolveMode = dict['revolveMode'];
   }
 }
@@ -540,7 +562,7 @@ class flowController extends controller{
     super(f, x, y, speed);
     this.targetFlow = targetFlow;
     this.currentIndex = 0;
-    this.patternArray = {};
+    this.patternArray = [];
   }
   registPattern(nameSet, paramSet){
     // nameSetに入ってるパラメータ名の所にparamSetの内容を登録
@@ -551,6 +573,7 @@ class flowController extends controller{
     this.patternArray.push(newDict);
   }
   completeAction(){
+    console.log("%d for flowController", frameCount);
     this.targetFlow.setting(this.patternArray[this.currentIndex]); // completeの度にsetting.
     this.currentIndex = (this.currentIndex + 1) % this.patternArray.length; // 回す
     this.setState(IDLE);
@@ -560,6 +583,8 @@ class flowController extends controller{
 // もっとも順繰りに回すことがすべてではないですけどね・・この手の何て言うんだろうな、
 // パフォーマンス系のプログラムにはもってこいのactorでしょう。
 // 走らせるルートをいじればインターバル変更も自由自在ですし。
+// Gimicもflowの一種なので適用範囲内。ただし、その場合は放り込む順番に注意する。
+// 今回の場合はGimicはinitialActionなので普通にやればOKですね。
 
 // たとえば背景をクラス扱いしてそれを形成する色の部分に変化を加えて・・とかできる。
 
@@ -723,6 +748,9 @@ class figureChangeGimic extends Gimic{
     //console.log("発動");
     _actor.visual.changeFigure(this.newFigureId);
   }
+  setting(dict){
+    this.newFigureId = dict['newFigureId']; // 力技感すごいけどまあ汎用的ではあるな。
+  }
 }
 
 // flowに装飾をするのが仕事。
@@ -757,7 +785,7 @@ class entity{
     return undefined;
   }
   initialize(){
-    createMassGame(); // MassGameをCreateする
+    createMassGameNew(); // MassGameをCreateする
     this.baseFlows.forEach(function(f){ f.display(this.base); }, this); // ベースグラフの初期化（addは毎ターン）
   }
   reset(){
@@ -862,6 +890,51 @@ class entity{
 }
 
 // --------------------------------------------------------------------------------------- //
+
+function createMassGameNew(){
+  // もういちどMassGame.
+  // 基本は整流 → orientedMuzzle → assemble → wait. これの繰り返し。
+  // 最初にぎゅっを作る。
+  let rectify = new rectifierHub(2); // 2フレームに1個排出
+  let mainMuzzle = new orientedMuzzle(0, 0, 0.1, 60, DIRECT, [createVector(300, 300)], 0); // 最初のぎゅっ
+  let assemble = new assembleHub(36); // 36匹集まると解放
+  let waitMotion = new waitFlow(45); // ちょっと待つ
+  // このシークエンスを延々と繰り返す
+  all.flows = all.flows.concat([rectify, mainMuzzle, assemble, waitMotion]); // テスト
+  all.connectMulti([0, 1, 2, 3], [[1], [2], [3], [0]]); // つなげる
+  all.updateList.push(rectify); // rectifyはupdateします
+
+  all.registActor(constSeq(0, 36), constSeq(1, 36), constSeq(0, 36));
+
+  // レールを用意する
+  let fcRail = new straightFlow(createVector(0, 0), createVector(0, 180), 1);
+  // これでframeCountはwaitが終わったところで164になるそうです。ぴったり！やったね。これで行こう。
+  all.flows.push(fcRail);
+  all.connectMulti([4], [[4]]); // 無限ループ
+  // コントローラーを用意する
+  let names = [];
+  let dict = {};
+  let rc = new flowController(fcRail, 0, 0, 1, rectify);
+  rc.registPattern(['interval'], [2]);
+  rc.registPattern(['interval'], [0]);
+  let wc = new flowController(fcRail, 0, 0, 1, waitMotion);
+  wc.registPattern(['span'], [45]); // delayありの方は45が正解。
+  wc.registPattern(['span'], [114]); // delayなしの方は114が正解。
+  let pc = new flowController(fcRail, 0, 0, 1, mainMuzzle);
+  let vecs = getPatternVector(0);
+  pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [0, 0, 0.1, 60, DIRECT, vecs, 0])
+  pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [0, 0, 0.1, 60, DIRECT, [createVector(100, 200), createVector(500, 400)], 1])
+  all.actors = all.actors.concat([rc, wc, pc]);
+  // 順序としてはその、rectifierいじるのの直前にcontrollerが発動する必要があって結構シビアな事になってる・・
+  // ともあれ、これでいけるでしょう。
+  // actorの誰かがrectifierに到達する前にrectifierのcontrollerが発動する必要があって、
+  // それを調べていました。これで大丈夫そうです。
+  // ワンサイクルが181と1多いのはハブでの切り替えで1フレーム使っているから。
+
+  all.activateAll();
+  let firstPos = getVector(arSinSeq(0, 2 * PI / 36, 36, 100, 300), arCosSeq(0, 2 * PI / 36, 36, 100, 300));
+  for(let i = 0; i < 36; i++){ all.actors[i].setPos(firstPos[i].x, firstPos[i].y); }
+}
 
 // まあ、bulletってクラス作ってfromとtoとdiffVector持たせればいいんだけどね・・
 function createMassGame(){
