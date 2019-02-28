@@ -384,7 +384,8 @@ class orientedMuzzle extends easingFlow{
   }
   regist(_actor){
     // revolverGimicでこれを呼び出して先に登録しちゃう
-    _actor.info['from'] = _actor.pos;
+    //_actor.info['from'] = _actor.pos;
+    _actor.info['from'] = createVector(_actor.pos.x, _actor.pos.y);
     let infoVector = this.getInfoVector(); // ベクトルはここで計算する
     if(this.kind === DIRECT){
       _actor.info['to'] = infoVector;
@@ -401,12 +402,8 @@ class orientedMuzzle extends easingFlow{
   execute(_actor){
     let progress = this.getProgress(_actor); // progressを普通に取得。
 		let easedProgress;
-		// 汎用的でないコードを書きます
-		if(this.easeId_parallel !== 10){
-			easedProgress = parallelFunc[this.easeId_parallel](progress);
-		}else{
-			easedProgress = parallelFunc[this.easeId_parallel](progress - (_actor.index / 72));
-		}
+		// 汎用的でないコードを書きます(書かなくて済むように研究中)
+		easedProgress = parallelFunc[this.easeId_parallel](progress);
     let normalDiff = normalFunc[this.easeId_normal](progress);
 
     let fromVector = _actor.info['from'];
@@ -590,10 +587,12 @@ class backgroundColorController extends controller{
 // 特定のflowを登録すると、dictの配列をcompleteの度にローテーションで放り込む。
 // flowはsettingという関数を持っていて、辞書を受け取ることができる必要があります。
 // 基本的にcontroller系はすべて対象が何かしらの関数を持っている必要があるんです。setPosとか。
-class flowController extends controller{
-  constructor(f = undefined, x = 0, y = 0, speed = 1, targetFlow){
+// いいや、汎用コントローラーとして定式化しよう。
+// dict引数のsetting持ちなら何でもOK! Yeah!!（いけるのかな・・）
+class multiController extends controller{
+  constructor(f = undefined, x = 0, y = 0, speed = 1, targetObject){
     super(f, x, y, speed);
-    this.targetFlow = targetFlow;
+    this.targetObject = targetObject;
     this.currentIndex = 0;
     this.patternArray = [];
   }
@@ -606,8 +605,8 @@ class flowController extends controller{
     this.patternArray.push(newDict);
   }
   completeAction(){
-    console.log("%d for flowController", frameCount);
-    this.targetFlow.setting(this.patternArray[this.currentIndex]); // completeの度にsetting.
+    console.log("%d for multiController", frameCount);
+    this.targetObject.setting(this.patternArray[this.currentIndex]); // completeの度にsetting.
     this.currentIndex = (this.currentIndex + 1) % this.patternArray.length; // 回す
     this.setState(IDLE);
     this.currentFlow.convert(this);
@@ -616,8 +615,8 @@ class flowController extends controller{
 // もっとも順繰りに回すことがすべてではないですけどね・・この手の何て言うんだろうな、
 // パフォーマンス系のプログラムにはもってこいのactorでしょう。
 // 走らせるルートをいじればインターバル変更も自由自在ですし。
-// Gimicもflowの一種なので適用範囲内。ただし、その場合は放り込む順番に注意する。
-// 今回の場合はGimicはinitialActionなので普通にやればOKですね。
+// Gimicはflowじゃないんだっけ忘れてた。。。いいや別に作ろう（おい）
+// というわけでmultiControllerになりました（ええ・・）
 
 // たとえば背景をクラス扱いしてそれを形成する色の部分に変化を加えて・・とかできる。
 
@@ -743,7 +742,7 @@ class rollingFigure extends figure{
 // initialはflowのinitializeの直前、completeはflowの完了直後に発動する
 class Gimic{
   constructor(myFlowId){
-    this.myFlowId = myFlowId; // どこのflowの最初や最後でいたずらするか
+    this.myFlowId = myFlowId; // idにしないと識別できないのよ・・
   }
   action(_actor){ return; };
   initialCheck(_actor, flowId){
@@ -782,6 +781,7 @@ class figureChangeGimic extends Gimic{
     _actor.visual.changeFigure(this.newFigureId);
   }
   setting(dict){
+    console.log(dict);
     this.newFigureId = dict['newFigureId']; // 力技感すごいけどまあ汎用的ではあるな。
   }
 }
@@ -925,59 +925,59 @@ class entity{
 }
 
 // --------------------------------------------------------------------------------------- //
-function createMassGameNew(){
-  let vecs = getVector([100, 123, 221], [231, 113, 98]);
-  let paramSet = getConstantFlow(vecs, [0, 1], [1, 2], [60, 80]);
-  all.registFlow(paramSet);
-  all.connectMulti([0], [[1]]);
-  all.registActor([0], [1], [0]);
-  all.activateAll();
-}
-/*
+
 function createMassGameNew(){
   // もういちどMassGame.
   // 基本は整流 → orientedMuzzle → assemble → wait. これの繰り返し。
   // 最初にぎゅっを作る。
   let rectify = new rectifierHub(2); // 2フレームに1個排出
-  let mainMuzzle = new orientedMuzzle(0, 0, 0.1, 60, DIRECT, [createVector(300, 300)], 0); // 最初のぎゅっ
+  let mainMuzzle = new orientedMuzzle(6, 0, 0.1, 60, DIRECT, [createVector(300, 300)], 0); // 最初のぎゅっ
   let assemble = new assembleHub(36); // 36匹集まると解放
-  let waitMotion = new waitFlow(45); // ちょっと待つ
+  let waitMotion = new waitFlow(31); // ちょっと待つ
   // このシークエンスを延々と繰り返す
   all.flows = all.flows.concat([rectify, mainMuzzle, assemble, waitMotion]); // テスト
   all.connectMulti([0, 1, 2, 3], [[1], [2], [3], [0]]); // つなげる
-  all.updateList.push(rectify); // rectifyはupdateします
+  all.updateList.push(rectify); // rectifyはupdateします。
 
+  // 形を変えるギミックを用意
+  let figureChanger = new figureChangeGimic(0, 0); // rectifierに仕掛ける
+  all.initialGimic.push(figureChanger);
+
+  // メインアクター。
   all.registActor(constSeq(0, 36), constSeq(1, 36), constSeq(0, 36));
 
   // レールを用意する
-  let fcRail = new straightFlow(createVector(0, 0), createVector(0, 180), 1);
+  let fcRail = new straightFlow(createVector(0, 0), createVector(0, 166), 1);
   // これでframeCountはwaitが終わったところで164になるそうです。ぴったり！やったね。これで行こう。
   all.flows.push(fcRail);
   all.connectMulti([4], [[4]]); // 無限ループ
   // コントローラーを用意する
-  let names = [];
-  let dict = {};
-  let rc = new flowController(fcRail, 0, 0, 1, rectify);
+  let rc = new multiController(fcRail, 0, 0, 1, rectify); // 整流器用
   rc.registPattern(['interval'], [2]);
   rc.registPattern(['interval'], [0]);
-  let wc = new flowController(fcRail, 0, 0, 1, waitMotion);
-  wc.registPattern(['span'], [45]); // delayありの方は45が正解。
-  wc.registPattern(['span'], [114]); // delayなしの方は114が正解。
-  let pc = new flowController(fcRail, 0, 0, 1, mainMuzzle);
+  let wc = new multiController(fcRail, 0, 0, 1, waitMotion); // 待ち時間用
+  wc.registPattern(['span'], [31]); // delayありの方は31が正解。
+  wc.registPattern(['span'], [100]); // delayなしの方は100が正解。
+  let pc = new multiController(fcRail, 0, 0, 1, mainMuzzle); // マズル用
   let vecs = getPatternVector(0);
-  pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [0, 0, 0.1, 60, DIRECT, vecs, 0])
-  pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [0, 0, 0.1, 60, DIRECT, [createVector(100, 200), createVector(500, 400)], 1])
-  all.actors = all.actors.concat([rc, wc, pc]);
+  pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [6, 0, 0.1, 60, DIRECT, vecs, 0])
+  pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [6, 0, 0.1, 60, DIRECT, [createVector(100, 200), createVector(500, 400)], 1])
+  let fc = new multiController(fcRail, 0, 0, 1, figureChanger); // 形状変化
+  fc.registPattern(['newFigureId'], [1]);
+  fc.registPattern(['newFigureId'], [2]);
+  all.actors = all.actors.concat([rc, wc, pc, fc]);
   // 順序としてはその、rectifierいじるのの直前にcontrollerが発動する必要があって結構シビアな事になってる・・
   // ともあれ、これでいけるでしょう。
   // actorの誰かがrectifierに到達する前にrectifierのcontrollerが発動する必要があって、
   // それを調べていました。これで大丈夫そうです。
-  // ワンサイクルが181と1多いのはハブでの切り替えで1フレーム使っているから。
+  // ワンサイクルが1多いのはハブでの切り替えで1フレーム使っているから。
+
+  // カラーレールとカラーコントローラー（メインアクター用、背景用）
 
   all.activateAll();
   let firstPos = getVector(arSinSeq(0, 2 * PI / 36, 36, 100, 300), arCosSeq(0, 2 * PI / 36, 36, 100, 300));
   for(let i = 0; i < 36; i++){ all.actors[i].setPos(firstPos[i].x, firstPos[i].y); }
-}*/
+}
 
 // まあ、bulletってクラス作ってfromとtoとdiffVector持たせればいいんだけどね・・
 function createMassGame(){
