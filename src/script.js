@@ -71,6 +71,7 @@ class flow{
   execute(_actor){
     _actor.setState(COMPLETED) // デフォルトはstateをCOMPLETEDにするだけ。こっちはタイミング決めるのはflowですから。
   }
+  update(){}  // update.
   convert(_actor){
     //_actor.setState(IDLE); // IDLEにするのはactor.
     if(this.convertList.length === 0){
@@ -122,6 +123,27 @@ class assembleHub extends flow{
     } // 開いてるなら行って良し
   }
 }
+class rectifierHub extends flow{
+  // 整流器。intervalごとに1匹通す。回転ずしで使えそう。あとはディレイとかかなぁ・・
+  constructor(interval){
+    super();
+    this.timer = new counter();
+    this.interval = interval;
+    this.open = true;
+  }
+  execute(_actor){
+    if(this.open){
+      _actor.setState(COMPLETED);
+      this.open = false;
+      this.timer.reset();
+    }
+  }
+  update(){
+    this.timer.step();
+    if(this.timer.getCnt() >= this.interval){ this.open = true; }
+  }
+}
+
 // assembleHub使えばinitializeのタイミングを同期させることができる・・その手もあったけどね。
 // まあ、使い分けよ。
 
@@ -255,14 +277,15 @@ class orientedMuzzle extends easingFlow{
     super(easeId_parallel, easeId_normal, ratio, spanTime);
     this.kind = kind; // DIRECTなら目標地点ベース、DIFFならベクトルベース
     this.infoVectorArray = infoVectorArray; // 位置だったりベクトルの集合
-    this.currentIndex = -1; // simpleはまず1つ進めてからなので初期値を-1にしておかないと。てかsimpleでしか使わないな・・
+    this.currentIndex = 0; // 0から始めようよ
     this.revolveMode = mode;
   }
   getInfoVector(){
     // 銃口を回す
     if(this.revolveMode === 0){ // simple. 1つ進める。reverseは配列を鏡写しで2倍にすればいい。([0, 1 ,2, 3, 2, 1]とか)
+      let index = this.currentIndex; // この方がきれい。
       this.currentIndex = (this.currentIndex + 1) % this.infoVectorArray.length;
-      return this.infoVectorArray[this.currentIndex];
+      return this.infoVectorArray[index];
     }else if(this.revolveMode === 1){ // rect.
       // [v0, v1]としてv0(左上)からv1(右下)までの範囲に指定する。DIRECTを想定。
       let leftUp = this.infoVectorArray[0];
@@ -348,6 +371,16 @@ class orientedMuzzle extends easingFlow{
       delete _actor.info['to'];
       delete _actor.info['diffVector'];
     }
+  }
+  setting(dict){
+    // パラメータの再設定(これでflowの再利用をする)
+    this.easeId_parallel = dict['easeId_parallel'];
+    this.easeId_normal = dict['easeId_normal'];
+    this.ratio = dict['ratio'];
+    this.spanTime = dict['spanTime'];
+    this.kind = dict['kind'];
+    this.infoVectorArray = dict['infoVectorArray'];
+    this.revolveMode = dict['revolveMode'];
   }
 }
 
@@ -497,6 +530,36 @@ class backgroundColorController extends controller{
   }
 }
 // むぅぅ。posControllerも作りたい。足し算で挙動に変化を加えるとか。
+
+// flowのcontrollerですね
+// 特定のflowを登録すると、dictの配列をcompleteの度にローテーションで放り込む。
+// flowはsettingという関数を持っていて、辞書を受け取ることができる必要があります。
+// 基本的にcontroller系はすべて対象が何かしらの関数を持っている必要があるんです。setPosとか。
+class flowController extends controller{
+  constructor(f = undefined, x = 0, y = 0, speed = 1, targetFlow){
+    super(f, x, y, speed);
+    this.targetFlow = targetFlow;
+    this.currentIndex = 0;
+    this.patternArray = {};
+  }
+  registPattern(nameSet, paramSet){
+    // nameSetに入ってるパラメータ名の所にparamSetの内容を登録
+    let newDict = {};
+    for(let i = 0; i < nameSet.length; i++){
+      newDict[nameSet[i]] = paramSet[i];
+    }
+    this.patternArray.push(newDict);
+  }
+  completeAction(){
+    this.targetFlow.setting(this.patternArray[this.currentIndex]); // completeの度にsetting.
+    this.currentIndex = (this.currentIndex + 1) % this.patternArray.length; // 回す
+    this.setState(IDLE);
+    this.currentFlow.convert(this);
+  }
+}
+// もっとも順繰りに回すことがすべてではないですけどね・・この手の何て言うんだろうな、
+// パフォーマンス系のプログラムにはもってこいのactorでしょう。
+// 走らせるルートをいじればインターバル変更も自由自在ですし。
 
 // たとえば背景をクラス扱いしてそれを形成する色の部分に変化を加えて・・とかできる。
 
@@ -674,10 +737,9 @@ class figureChangeGimic extends Gimic{
 class entity{
   constructor(){
     this.base = createGraphics(width, height);
-    this.additive = createGraphics(width, height); // addFlowsで作るやつー
     this.flows = [];
     this.baseFlows = []; // baseのflowの配列
-    this.addFlows = [];  // 動かすflowからなる配列    // これをupdateすることでflowを動かしたいんだけど
+    this.updateList = []; // updateが必要なflowのリスト
     this.actors = [];
     this.initialGimic = [];  // flow開始時のギミック
     this.completeGimic = []; // flow終了時のギミック
@@ -700,10 +762,9 @@ class entity{
   }
   reset(){
     this.base.clear();
-    this.additive.clear();
     this.flows = [];
     this.baseFlows = []; // baseのflowの配列
-    this.addFlows = [];  // 動かすflowからなる配列
+    this.updateList = []; // updateListのクリア
     this.actors = [];
     flow.index = 0; // 通し番号リセット
     actor.index = 0;
@@ -714,24 +775,11 @@ class entity{
     this.actors.forEach(function(_actor){ _actor.activate(); }, this);
     // 一部だけしたくないならこの後個別にinActivateするとか？
   }
-  switchPattern(newIndex){
-    this.reset();
-    this.patternIndex = newIndex;
-    this.initialize(); // これだけか。まぁhub無くなったしな。
-  }
   registActor(flowIds, speeds, colorIds){
     // flowはメソッドでidから取得。
     for(let i = 0; i < flowIds.length; i++){
       let f = this.getFlow(flowIds[i]);
       let newActor = new movingActor(f, speeds[i], colorIds[i])
-      this.actors.push(newActor);
-    }
-  }
-  registDetailedActor(flowIds, speeds, colorIds, figureIds){
-    // 個別に形とか大きさとか指定する
-    for(let i = 0; i < flowIds.length; i++){
-      let f = this.getFlow(flowIds[i]);
-      let newActor = new movingActor(f, speeds[i], colorIds[i], figureIds[i]);
       this.actors.push(newActor);
     }
   }
@@ -743,14 +791,6 @@ class entity{
       if(flag){
         this.baseFlows.push(newFlow); //flagをoffにするとbaseFlowに入らないので描画されない。
       }
-    }, this);
-  }
-  registAddFlow(paramSet, flag = true){
-    // こちらはaddFlowに入れるためのあれ。
-    paramSet.forEach(function(params){
-      let newFlow = entity.createFlow(params);
-      this.flows.push(newFlow);
-      this.addFlows.push(newFlow);
     }, this);
   }
   connect(index, nextIndexList){
@@ -811,14 +851,10 @@ class entity{
     this.actors.forEach(function(_actor){
       _actor.update(); // flowもupdateしたいんだけどね
     })
+    this.updateList.forEach(function(_flow){ _flow.update(); })  // updateListが[]でなければ実行
   }
   draw(){
     image(this.base, 0, 0);
-    if(this.addFlows.length > 0){ // 付加的な要素は毎フレーム描画し直す感じで
-      this.additive.clear();
-      this.addFlows.forEach(function(f){ f.display(this.additive); })
-      image(this.additive, 0, 0); // 忘れてた、これ無かったら描画されないじゃん
-    }
     this.actors.forEach(function(_actor){ // actorの描画
       _actor.display();
     })
