@@ -6,7 +6,7 @@ let hueSet; // カラーパレット
 
 const COLOR_NUM = 7;
 
-const INTERVAL = 2; // delayのinterval.
+const INTERVAL = 7; // delayのinterval.
 const SPANTIME = 120; // 演技にかかる時間
 const WAITSPAN = 60; // 全員演技終わってから再スタートまでのspan
 const SIZE = 36; // 変えられるのかどうか知らない。知らないけど。
@@ -29,6 +29,25 @@ function draw(){
   background(backgroundColor);
   all.update();
   all.draw();
+  // デバッグ用
+  push();
+  fill('red');
+  rect(0, 0, 40, 40);
+  fill('blue')
+  rect(0, 40, 40, 40);
+  fill(0);
+  text('stop', 10, 20);
+  text('start', 10, 60);
+  pop();
+}
+
+// デバッグ用
+function mouseClicked(){
+  if(mouseX < 40 && mouseY < 80){
+    if(mouseY < 40){ noLoop(); }
+    else{ loop(); }
+    return;
+  }
 }
 
 class counter{
@@ -50,6 +69,7 @@ class entity{
     // SIZE個のあれ。
     let vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 200, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 200, 300));
     vecs.push(createVector(300, 300));
+    console.log(vecs);
     for(let i = 0; i < SIZE; i++){ this.flows.push(new constantFlow(vecs[i], vecs[SIZE])); }
     for(let i = 0; i < SIZE; i++){ this.actors.push(new massCell(this.flows[i], 0, 0)); }
     let waitFlow = new waiting(this.actors[SIZE - 1], 50); // finalActorを登録。
@@ -121,8 +141,10 @@ class constantFlow extends flow{
     super();
     this.from = createVector(from.x, from.y);
     this.to = createVector(to.x, to.y);
+    //console.log(this.from);
   }
   initialize(_actor){
+    console.log('move start. %d', frameCount);
     _actor.timer.reset(); // fromの位置から始まることが前提なので省略
   }
   getProgress(_actor){
@@ -136,7 +158,7 @@ class constantFlow extends flow{
     let newX = map(progress, 0, 1, this.from.x, this.to.x);
     let newY = map(progress, 0, 1, this.from.y, this.to.y);
     _actor.setPos(newX, newY);
-    if(progress === 1){ _actor.setState(COMPLETED); } // 終了命令忘れた
+    if(progress === 1){ _actor.setState(COMPLETED); console.log('move complete. %d', frameCount) } // 終了命令忘れた
   }
   setting(v1, v2){ // セット関数
     this.from = createVector(v1.x, v1.y);
@@ -150,6 +172,7 @@ class commandAll extends flow{
     super();
     this.actorArray = actorArray;
   }
+  initialize(_actor){ console.log("All"); }
   execute(_actor){
     this.actorArray.forEach(function(a){ _actor.command(a); }) // commandはあとで実装する
     _actor.setState(COMPLETED);
@@ -165,6 +188,7 @@ class commandDelay extends flow{
     this.actorArray = actorArray;
   }
   initialize(_actor){
+    console.log("Delay");
     _actor.timer.reset();
   }
   execute(_actor){
@@ -189,10 +213,10 @@ class waiting extends flow{
     if(this.finalActor.isActive){ return; }
     _actor.timer.step();
     if(_actor.timer.getCnt() === this.span){ _actor.setState(COMPLETED); }
-    console.log('execute.');
+    //console.log('execute.');
   }
   convert(_actor){
-    console.log('complete. %d', frameCount);
+    //console.log('complete. %d', frameCount);
     _actor.shiftCommand(); // 次の命令
     if(_actor.delay){ _actor.currentFlow = this.convertList[0]; }
     else{ _actor.currentFlow = this.convertList[1]; } // delayかけるときは0, そうでなければ1に渡す
@@ -219,7 +243,7 @@ class actor{
     }else if(this.state === IN_PROGRESS){
       this.in_progressAction();
     }else if(this.state === COMPLETED){
-      console.log(this.isActive);
+      //console.log(this.isActive);
       this.completeAction();
     }
   }
@@ -241,7 +265,7 @@ class actor{
 class massCell extends actor{
   constructor(f = undefined, colorId, figureId = 0){
     super(f);
-    this.pos = f.from;
+    this.pos = createVector(f.from.x, f.from.y); // またポインタ渡してるよこの馬鹿・・・・
     //console.log('initialize of massCell');
     this.visual = new figure(colorId, figureId); // 色は変わるけどね
   }
@@ -298,7 +322,7 @@ class figure{
     gr.clear();
     gr.noStroke();
     gr.fill(myColor);
-    console.log('setGraphic');
+    //console.log('setGraphic');
     if(figureId === 0){
       // 正方形
       gr.rect(10, 10, 20, 20);
@@ -395,7 +419,6 @@ class commander extends actor{
       // ダイレクト指示
       v = vecs[target.index];
     }
-    console.log(target);
     target.currentFlow.setting(target.pos, v); // fromを現在位置、toを目的地に設定
     target.changeFigure(dict['figureId']); // 姿を変える
     target.activate(); // 起動。
