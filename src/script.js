@@ -946,29 +946,37 @@ function createMassGameNew(){
   // メインアクター。
   all.registActor(constSeq(0, 36), constSeq(1, 36), constSeq(0, 36));
 
-  // レールを用意する
-  //let fcRail = new straightFlow(createVector(0, 0), createVector(0, 166), 1);
-  let fcRail = new waitFlow(166);
-  let fcRail_2 = new waitFlow(166);
   // これでframeCountはwaitが終わったところで164になるそうです。ぴったり！やったね。これで行こう。
-  all.flows.push(fcRail);
-  all.flows.push(fcRail_2);
-  all.connectMulti([4, 5], [[5], [4]]); // 無限ループ
+
+  // レールを用意する
+  let spanSet = [166, 166];
+  for(let i = 0; i < 2; i++){ all.flows.push(new waitFlow(spanSet[i])); }
+  all.connectMulti([4, 5], [[5], [4]]); // waitのループ
+
   // コントローラーを用意する
-  let rc = new multiController(fcRail, rectify); // 整流器用
-  rc.registPattern(['interval'], [2]);
-  rc.registPattern(['interval'], [0]);
-  let wc = new multiController(fcRail, waitMotion); // 待ち時間用
-  wc.registPattern(['span'], [31]); // delayありの方は31が正解。
-  wc.registPattern(['span'], [100]); // delayなしの方は100が正解。
-  let pc = new multiController(fcRail, mainMuzzle); // マズル用
-  let vecs = getPatternVector(0);
-  pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [6, 0, 0.1, 60, DIRECT, vecs, 0])
-  pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [6, 0, 0.1, 60, DIRECT, [createVector(100, 200), createVector(500, 400)], 1])
-  let fc = new multiController(fcRail, figureChanger); // 形状変化
-  fc.registPattern(['newFigureId'], [1]);
-  fc.registPattern(['newFigureId'], [2]);
+  let rc = new multiController(all.flows[4], rectify); // 整流器用
+  let wc = new multiController(all.flows[4], waitMotion); // 待ち時間用
+  let fc = new multiController(all.flows[4], figureChanger); // 形状変化
+  let pc = new multiController(all.flows[4], mainMuzzle); // マズル用
   all.actors = all.actors.concat([rc, wc, pc, fc]);
+
+  // 登録
+  let intervalList = [2, 0];
+  let spanList = [31, 100];
+  let newFigureIdList = [1, 2];
+  let patternList = [];
+  let vecs = getPatternVector(0);
+  patternList.push([6, 0, 0.1, 60, DIRECT, vecs, 0]);
+  vecs = getPatternVector(1);
+  patternList.push([6, 0, 0.1, 60, DIRECT, vecs, 0])
+
+  for(let i = 0; i < 2; i++){
+    rc.registPattern(['interval'], [intervalList[i]]);
+    wc.registPattern(['span'], [spanList[i]]);
+    fc.registPattern(['newFigureId'], [newFigureIdList[i]]);
+    pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], patternList[i]);
+  }
+
   // 順序としてはその、rectifierいじるのの直前にcontrollerが発動する必要があって結構シビアな事になってる・・
   // ともあれ、これでいけるでしょう。
   // actorの誰かがrectifierに到達する前にrectifierのcontrollerが発動する必要があって、
