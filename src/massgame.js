@@ -6,8 +6,8 @@ let hueSet; // カラーパレット
 
 const COLOR_NUM = 7;
 
-const INTERVAL = 7; // delayのinterval.
-const SPANTIME = 120; // 演技にかかる時間
+const INTERVAL = 3; // delayのinterval.
+const SPANTIME = 60; // 演技にかかる時間
 const WAITSPAN = 60; // 全員演技終わってから再スタートまでのspan
 const SIZE = 36; // 変えられるのかどうか知らない。知らないけど。
 
@@ -74,9 +74,12 @@ class entity{
     for(let i = 0; i < SIZE; i++){ this.actors.push(new massCell(this.flows[i], 0, 0)); }
     let waitFlow = new waiting(this.actors[SIZE - 1], 50); // finalActorを登録。
     let cmder = new commander(waitFlow);
-
     let dictArray = entity.getCommandArray();
     cmder.setCommandArray(dictArray);
+
+    // ここでdelayの初期値を計算
+    cmder.delay = cmder.commandArray[0]['delay'];
+
     let massGameActors = [];
     for(let i = 0; i < SIZE; i++){ massGameActors.push(all.actors[i]); }
     let commandAllFlow = new commandAll(massGameActors);
@@ -101,20 +104,27 @@ class entity{
   }
   static getCommandArray(){
     // dictの配列を返す。これはcommanderにセットされる。
+    // あとは然るべき規則でここに書き込めば勝手にパターンを次々と演じてくれる。
+    // フレーム数調べてカラコン用意してconstantFlow走らせれば色も変えられます。以上。
     let dictArray = [];
     let dict = {};
     dict['delay'] = true;
     dict['mode'] = 'direct';
     dict['infoVectorArray'] = getVector(arSeq(100, 10, 36), constSeq(300, 36));
-    dict['figureId'] = 6;
+    dict['figureId'] = 1;
     dictArray.push(dict);
     let dict2 = {};
     dict2['delay'] = false;
     dict2['mode'] = 'direct';
     dict2['infoVectorArray'] = getVector(constSeq(300, 36), arSeq(100, 12, 36));
-    dict2['figureId'] = 3;
+    dict2['figureId'] = 4;
     dictArray.push(dict2);
-
+    let dict3 = {};
+    dict3['delay'] = true;
+    dict3['mode'] = 'rect';
+    dict3['infoVectorArray'] = getVector([100, 300], [100, 300]);
+    dict3['figureId'] = 2;
+    dictArray.push(dict3);
     return dictArray;
   }
 }
@@ -144,7 +154,7 @@ class constantFlow extends flow{
     //console.log(this.from);
   }
   initialize(_actor){
-    console.log('move start. %d', frameCount);
+    //console.log('move start. %d', frameCount);
     _actor.timer.reset(); // fromの位置から始まることが前提なので省略
   }
   getProgress(_actor){
@@ -158,7 +168,10 @@ class constantFlow extends flow{
     let newX = map(progress, 0, 1, this.from.x, this.to.x);
     let newY = map(progress, 0, 1, this.from.y, this.to.y);
     _actor.setPos(newX, newY);
-    if(progress === 1){ _actor.setState(COMPLETED); console.log('move complete. %d', frameCount) } // 終了命令忘れた
+    if(progress === 1){
+      _actor.setState(COMPLETED);
+      //console.log('move complete. %d', frameCount)
+    } // 終了命令忘れた
   }
   setting(v1, v2){ // セット関数
     this.from = createVector(v1.x, v1.y);
@@ -176,6 +189,7 @@ class commandAll extends flow{
   execute(_actor){
     this.actorArray.forEach(function(a){ _actor.command(a); }) // commandはあとで実装する
     _actor.setState(COMPLETED);
+    _actor.shiftCommand(); // 次の命令
   }
 }
 // commandは辞書の配列を使っていろいろ指示するもの（その中にはactivateも入っている）
@@ -195,7 +209,10 @@ class commandDelay extends flow{
     _actor.timer.step();
     let cnt = _actor.timer.getCnt();
     if(cnt % INTERVAL === 0){ _actor.command(this.actorArray[Math.floor(cnt / INTERVAL) - 1]); }
-    if(cnt === this.actorArray.length * INTERVAL){ _actor.setState(COMPLETED); }
+    if(cnt === this.actorArray.length * INTERVAL){
+      _actor.setState(COMPLETED);
+      _actor.shiftCommand(); // 次の命令
+    }
   }
 }
 
@@ -217,7 +234,7 @@ class waiting extends flow{
   }
   convert(_actor){
     //console.log('complete. %d', frameCount);
-    _actor.shiftCommand(); // 次の命令
+    //_actor.shiftCommand(); // 次の命令
     if(_actor.delay){ _actor.currentFlow = this.convertList[0]; }
     else{ _actor.currentFlow = this.convertList[1]; } // delayかけるときは0, そうでなければ1に渡す
   }  // delayはcommanderのプロパティ
@@ -410,6 +427,7 @@ class commander extends actor{
       x = map(random(1), 0, 1, vecs[0].x, vecs[1].x);
       y = map(random(1), 0, 1, vecs[0].y, vecs[1].y);
       v = createVector(x, y);
+      //console.log("%d %d", v.x, v.y)
     }else if(mode === 'circle'){
       let r, theta;
       r = random(1);
