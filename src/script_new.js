@@ -8,15 +8,7 @@ let all; // 全体
 let backgroundColor;
 let palette; // カラーパレット
 
-// orientedMuzzle用。parallelは[0,1]→[0,1]で、normalは[0,1]上で0から0へみたいな。
-let parallelFunc = [funcP0, funcP1, funcP2, funcP3, funcP4, funcP5, funcP6, funcP7, funcP8, funcP9, funcP10];
-let normalFunc = [funcN0];
-
-const PATTERN_NUM = 1;
 const COLOR_NUM = 7;
-
-const DIRECT = 0; // orientedFlowの位置指定、直接指定。
-const DIFF = 1 // 差分指定。
 
 const IDLE = 0;
 const IN_PROGRESS = 1;
@@ -30,7 +22,6 @@ function setup(){
   palette = [color(0, 100, 100), color(10, 100, 100), color(17, 100, 100), color(35, 100, 100), color(52, 100, 100), color(64, 100, 100), color(80, 100, 100)];
   all = new entity();
   all.initialize();
-  console.log(frameCount);
 }
 
 function draw(){

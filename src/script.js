@@ -32,7 +32,6 @@ function setup(){
   palette = [color(0, 100, 100), color(10, 100, 100), color(17, 100, 100), color(35, 100, 100), color(52, 100, 100), color(64, 100, 100), color(80, 100, 100)];
   all = new entity();
   all.initialize();
-  console.log(frameCount);
 }
 
 function draw(){
@@ -105,13 +104,11 @@ class waitFlow extends flow{
     this.span = span; // どれくらい進めるか
   }
   initialize(_actor){
-    console.log("initialize waitMotion %d %d", _actor.index, frameCount);
     _actor.timer.reset();
   }
   execute(_actor){
     _actor.timer.step(1);
     if(_actor.timer.getCnt() >= this.span){
-      console.log("%d for waitMotion.", frameCount);
       _actor.setState(COMPLETED);
     } // limitって書いちゃった
   }
@@ -150,11 +147,9 @@ class rectifierHub extends flow{
     this.interval = interval;
     this.open = true;
   }
-  initialize(_actor){ console.log("initialize rectifier %d %d", _actor.index, frameCount); }
   execute(_actor){
-    if(this.interval === 0){ console.log("%d for rectifier", frameCount); _actor.setState(COMPLETED); return; } // intervalに0を入れると無効化できる
+    if(this.interval === 0){ _actor.setState(COMPLETED); return; } // intervalに0を入れると無効化できる
     if(this.open){
-      console.log("%d for rectifier", frameCount);
       _actor.setState(COMPLETED);
       this.open = false;
     }
@@ -615,7 +610,6 @@ class multiController extends actor{
     this.patternArray.push(newDict);
   }
   completeAction(){
-    console.log("%d for multiController", frameCount);
     this.targetObject.setting(this.patternArray[this.currentIndex]); // completeの度にsetting.
     this.currentIndex = (this.currentIndex + 1) % this.patternArray.length; // 回す
     this.setState(IDLE);
@@ -791,7 +785,6 @@ class figureChangeGimic extends Gimic{
     _actor.visual.changeFigure(this.newFigureId);
   }
   setting(dict){
-    console.log(dict);
     this.newFigureId = dict['newFigureId']; // 力技感すごいけどまあ汎用的ではあるな。
   }
 }
@@ -843,7 +836,7 @@ class entity{
     this.completeGimic = [];
   }
   activateAll(){ // まとめてactivate.
-    this.actors.forEach(function(_actor){ console.log(_actor); _actor.activate(); }, this);
+    this.actors.forEach(function(_actor){ _actor.activate(); }, this);
     // 一部だけしたくないならこの後個別にinActivateするとか？
   }
   registActor(flowIds, speeds, colorIds){
