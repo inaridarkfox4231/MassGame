@@ -1,9 +1,7 @@
 // flowベースでの書き換えをする実験～～
 // 応用：MassGame.
-// 最後、initializeの順番で問題が発生したけど、
-// あれはstraightFlowで距離を近似計算してて、それで誤差が発生して
-// 到達するタイミングがずれて、そのあと全部ズレちゃったのが原因だった。
-// 時間管理に優れたorbitalEasingFlowに取り替えたらうまくいった。ふぅ・・
+// リセット
+
 
 'use strict';
 let all; // 全体
@@ -390,7 +388,7 @@ class orientedMuzzle extends easingFlow{
   regist(_actor){
     // revolverGimicでこれを呼び出して先に登録しちゃう
     //_actor.info['from'] = _actor.pos;
-    _actor.info['from'] = _actor.pos;
+    _actor.info['from'] = createVector(_actor.pos.x, _actor.pos.y);
     let infoVector = this.getInfoVector(); // ベクトルはここで計算する
     if(this.kind === DIRECT){
       _actor.info['to'] = infoVector;
@@ -408,12 +406,7 @@ class orientedMuzzle extends easingFlow{
     let progress = this.getProgress(_actor); // progressを普通に取得。
 		let easedProgress;
 		// 汎用的でないコードを書きます(書かなくて済むように研究中)
-    // 以下の部分は汎用的ではないです
-    if(this.easeId_parallel === 10){
-      easedProgress = parallelFunc[this.easeId_parallel](progress - (_actor.index / 72));
-    }else{
-      easedProgress = parallelFunc[this.easeId_parallel](progress);
-    }
+		easedProgress = parallelFunc[this.easeId_parallel](progress);
     let normalDiff = normalFunc[this.easeId_normal](progress);
 
     let fromVector = _actor.info['from'];
@@ -828,7 +821,7 @@ class entity{
     return undefined;
   }
   initialize(){
-    createMassGame(); // MassGameをCreateする
+    createMassGameNew(); // MassGameをCreateする
     this.baseFlows.forEach(function(f){ f.display(this.base); }, this); // ベースグラフの初期化（addは毎ターン）
   }
   reset(){
