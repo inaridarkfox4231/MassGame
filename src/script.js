@@ -589,9 +589,9 @@ class backgroundColorController extends controller{
 // 基本的にcontroller系はすべて対象が何かしらの関数を持っている必要があるんです。setPosとか。
 // いいや、汎用コントローラーとして定式化しよう。
 // dict引数のsetting持ちなら何でもOK! Yeah!!（いけるのかな・・）
-class multiController extends controller{
-  constructor(f = undefined, x = 0, y = 0, speed = 1, targetObject){
-    super(f, x, y, speed);
+class multiController extends actor{
+  constructor(f = undefined, targetObject){
+    super(f);
     this.targetObject = targetObject;
     this.currentIndex = 0;
     this.patternArray = [];
@@ -833,7 +833,7 @@ class entity{
     this.completeGimic = [];
   }
   activateAll(){ // まとめてactivate.
-    this.actors.forEach(function(_actor){ _actor.activate(); }, this);
+    this.actors.forEach(function(_actor){ console.log(_actor); _actor.activate(); }, this);
     // 一部だけしたくないならこの後個別にinActivateするとか？
   }
   registActor(flowIds, speeds, colorIds){
@@ -947,22 +947,25 @@ function createMassGameNew(){
   all.registActor(constSeq(0, 36), constSeq(1, 36), constSeq(0, 36));
 
   // レールを用意する
-  let fcRail = new straightFlow(createVector(0, 0), createVector(0, 166), 1);
+  //let fcRail = new straightFlow(createVector(0, 0), createVector(0, 166), 1);
+  let fcRail = new waitFlow(166);
+  let fcRail_2 = new waitFlow(166);
   // これでframeCountはwaitが終わったところで164になるそうです。ぴったり！やったね。これで行こう。
   all.flows.push(fcRail);
-  all.connectMulti([4], [[4]]); // 無限ループ
+  all.flows.push(fcRail_2);
+  all.connectMulti([4, 5], [[5], [4]]); // 無限ループ
   // コントローラーを用意する
-  let rc = new multiController(fcRail, 0, 0, 1, rectify); // 整流器用
+  let rc = new multiController(fcRail, rectify); // 整流器用
   rc.registPattern(['interval'], [2]);
   rc.registPattern(['interval'], [0]);
-  let wc = new multiController(fcRail, 0, 0, 1, waitMotion); // 待ち時間用
+  let wc = new multiController(fcRail, waitMotion); // 待ち時間用
   wc.registPattern(['span'], [31]); // delayありの方は31が正解。
   wc.registPattern(['span'], [100]); // delayなしの方は100が正解。
-  let pc = new multiController(fcRail, 0, 0, 1, mainMuzzle); // マズル用
+  let pc = new multiController(fcRail, mainMuzzle); // マズル用
   let vecs = getPatternVector(0);
   pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [6, 0, 0.1, 60, DIRECT, vecs, 0])
   pc.registPattern(['easeId_parallel', 'easeId_normal', 'ratio', 'spanTime', 'kind',  'infoVectorArray', 'revolveMode'], [6, 0, 0.1, 60, DIRECT, [createVector(100, 200), createVector(500, 400)], 1])
-  let fc = new multiController(fcRail, 0, 0, 1, figureChanger); // 形状変化
+  let fc = new multiController(fcRail, figureChanger); // 形状変化
   fc.registPattern(['newFigureId'], [1]);
   fc.registPattern(['newFigureId'], [2]);
   all.actors = all.actors.concat([rc, wc, pc, fc]);
@@ -972,7 +975,7 @@ function createMassGameNew(){
   // それを調べていました。これで大丈夫そうです。
   // ワンサイクルが1多いのはハブでの切り替えで1フレーム使っているから。
 
-  // カラーレールとカラーコントローラー（メインアクター用、背景用）
+  // カラーレールとカラーコントローラー（メインアクター用、背景用）は一番最後でいいです
 
   all.activateAll();
   let firstPos = getVector(arSinSeq(0, 2 * PI / 36, 36, 100, 300), arCosSeq(0, 2 * PI / 36, 36, 100, 300));
