@@ -104,7 +104,10 @@ class waitFlow extends flow{
     super();
     this.span = span; // どれくらい進めるか
   }
-  initialize(_actor){ _actor.timer.reset(); }
+  initialize(_actor){
+    console.log("initialize waitMotion %d %d", _actor.index, frameCount);
+    _actor.timer.reset();
+  }
   execute(_actor){
     _actor.timer.step(1);
     if(_actor.timer.getCnt() >= this.span){
@@ -128,7 +131,7 @@ class assembleHub extends flow{
   }
   initialize(_actor){
     this.volume++; // これだけ。
-    if(this.volume >= this.limit){ this.open = true; } // limitに達したら開くよ
+    //if(this.volume >= this.limit){ this.open = true; } // limitに達したら開くよ
   }
   execute(_actor){
     if(this.open){
@@ -136,6 +139,7 @@ class assembleHub extends flow{
       this.volume--; // 出て行ったら減らす
       if(this.volume === 0){ this.open = false; } // 0になったタイミングで閉じる
     } // 開いてるなら行って良し
+    if(this.volume >= this.limit){ this.open = true; } // 先に入った人から出ていくようになる・・？（先入先出法）
   }
 }
 class rectifierHub extends flow{
@@ -146,6 +150,7 @@ class rectifierHub extends flow{
     this.interval = interval;
     this.open = true;
   }
+  initialize(_actor){ console.log("initialize rectifier %d %d", _actor.index, frameCount); }
   execute(_actor){
     if(this.interval === 0){ console.log("%d for rectifier", frameCount); _actor.setState(COMPLETED); return; } // intervalに0を入れると無効化できる
     if(this.open){
@@ -949,26 +954,26 @@ function createMassGameNew(){
   // これでframeCountはwaitが終わったところで164になるそうです。ぴったり！やったね。これで行こう。
 
   // レールを用意する
-  let spanSet = [166, 166];
-  for(let i = 0; i < 2; i++){ all.flows.push(new waitFlow(spanSet[i])); }
-  all.connectMulti([4, 5], [[5], [4]]); // waitのループ
+  let spanSet = [166, 166, 167];
+  for(let i = 0; i < 3; i++){ all.flows.push(new waitFlow(spanSet[i])); }
+  all.connectMulti([4, 5, 6], [[5], [6], [5]]); // waitのループ
 
   // コントローラーを用意する
   let rc = new multiController(all.flows[4], rectify); // 整流器用
   let wc = new multiController(all.flows[4], waitMotion); // 待ち時間用
   let fc = new multiController(all.flows[4], figureChanger); // 形状変化
   let pc = new multiController(all.flows[4], mainMuzzle); // マズル用
-  all.actors = all.actors.concat([rc, wc, pc, fc]);
+  all.actors = all.actors.concat([rc, wc, fc, pc]);
 
   // 登録
-  let intervalList = [2, 0];
-  let spanList = [31, 100];
+  let intervalList = [0, 2];
+  let spanList = [100, 31];
   let newFigureIdList = [1, 2];
   let patternList = [];
-  let vecs = getPatternVector(0);
+  let vecs = [];
+  patternList.push([0, 0, 0.1, 60, DIRECT, [createVector(150, 150), createVector(450, 450)], 1])
+  vecs = getPatternVector(0);
   patternList.push([6, 0, 0.1, 60, DIRECT, vecs, 0]);
-  vecs = getPatternVector(1);
-  patternList.push([6, 0, 0.1, 60, DIRECT, vecs, 0])
 
   for(let i = 0; i < 2; i++){
     rc.registPattern(['interval'], [intervalList[i]]);
