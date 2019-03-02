@@ -15,10 +15,12 @@ let hueSet; // カラーパレット
 // しかもそのバリエーションを0番に配置するのでpatternChangeはちゃんとwaitingのconvert時に行うことができる。
 // これにより2箇所に分けて書く必要がなくなる。とりあえず、以上。
 
+// あともうひとつ。カラーコントロールでwaitingのときコントローラも止まるようにしてね。
+
 const COLOR_NUM = 7;
 
 //const INTERVAL = 3; // delayのinterval. // 可変にしてみる
-const SPANTIME = 60; // 演技にかかる時間
+//const SPANTIME = 60; // 演技にかかる時間
 //const WAITSPAN = 60; // 全員演技終わってから再スタートまでのspan
 const SIZE = 36; // 変えられるのかどうか知らない。知らないけど。
 
@@ -78,11 +80,11 @@ class entity{
   }
   initialize(){
     // SIZE個のあれ。
-    //let vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 200, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 200, 300));
+    let vecs = getVector(arSinSeq(0, 2 * PI / 36, 36, 200, 300), arCosSeq(0, 2 * PI / 36, 36, 200, 300));
     //vecs.push(createVector(300, 300));
     //v = createVector(300, 300);
     // これで初期位置が(300, 300)になる。
-    for(let i = 0; i < SIZE; i++){ this.flows.push(new constantFlow(createVector(300, 300), createVector(0, 0), 60)); }
+    for(let i = 0; i < SIZE; i++){ this.flows.push(new constantFlow(vecs[i], createVector(300, 300), 60)); }
     for(let i = 0; i < SIZE; i++){ this.actors.push(new massCell(this.flows[i], 0, 0)); }
     // commanderの準備として一連のflowとあとtroopを準備する
     let commandAllFlow = new commandAll(); // 引数をなくす
@@ -91,7 +93,7 @@ class entity{
     let troop = []; // 演技者の集団
     for(let i = 0; i < SIZE; i++){ troop.push(all.actors[i]); }
     // commanderを生成(最初の命令がdelayなのでdelayからスタート)
-    let cmder = new commander(commandDelayFlow, troop);
+    let cmder = new commander(commandAllFlow, troop);
     let dictArray = entity.getCommandArray();
     cmder.setCommandArray(dictArray);
     this.actors.push(cmder); // 忘れてた. ていうかこれ上のやつに含めちゃまずいね。
@@ -125,19 +127,61 @@ class entity{
     // フレーム数調べてカラコン用意してconstantFlow走らせれば色も変えられます。以上。
     let dictArray = [];
     // とりあえず同じもの作ってみるか？初期位置中心でスタート。
-    let vecs = getVector(arSeq(100, 10, 36), constSeq(300, 36));
-    let pattern = entity.getDirectCommand(2, 20, 60, vecs, 1);
+    // まず中心にぎゅっ。
+    let vecs = getVector(constSeq(300, 36), constSeq(300, 36));
+    let pattern = entity.getDirectCommand(0, 30, 60, vecs, 7);
     dictArray.push(pattern);
-
-    vecs = getVector(constSeq(300, 36), arSeq(100, 12, 36));
-    pattern = entity.getDirectCommand(0, 30, 60, vecs, 4);
+    // 次にrectのrandom.
+    pattern = entity.getRectCommand(0, 40, 60, 100, 100, 500, 500, 7);
     dictArray.push(pattern);
-
-    pattern = entity.getRectCommand(7, 40, 60, 100, 100, 300, 300, 2);
+    // 次に正方形.
+    vecs = getPatternVector(0);
+    pattern = entity.getDirectCommand(2, 50, 30, vecs, 0);
     dictArray.push(pattern);
-    pattern = entity.getBandCommand(0, 50, 60, 170, 200, PI / 4, 7 * PI / 4, 300, 300, 5);
+    // 次に上向きの扇形ランダム
+    pattern = entity.getBandCommand(0, 40, 40, 150, 175, 0, PI, 300, 300, 0);
     dictArray.push(pattern);
-    pattern = entity.getEllipseCommand(3, 60, 60, 300, 300, 200, 50, 1);
+    // 星型。
+    vecs = getPatternVector(1);
+    pattern = entity.getDirectCommand(4, 50, 40, vecs, 1);
+    dictArray.push(pattern);
+    // 十字型。
+    vecs = getPatternVector(2);
+    pattern = entity.getDirectCommand(3, 50, 40, vecs, 1);
+    dictArray.push(pattern);
+    // 三角形。
+    vecs = getPatternVector(3);
+    pattern = entity.getDirectCommand(4, 50, 40, vecs, 2);
+    dictArray.push(pattern);
+    // 横長rectランダム（これ本当は右向き扇状に中心スタートできれいに並べたい）
+    pattern = entity.getRectCommand(0, 50, 60, 100, 250, 500, 350, 2);
+    dictArray.push(pattern);
+    // ひし形4つ
+    vecs = getPatternVector(4);
+    pattern = entity.getDirectCommand(4, 70, 40, vecs, 3);
+    dictArray.push(pattern);
+    // 縦長rectランダム
+    pattern = entity.getRectCommand(0, 50, 60, 250, 100, 350, 500, 3);
+    dictArray.push(pattern);
+    // 六角形
+    vecs = getPatternVector(5);
+    pattern = entity.getDirectCommand(4, 50, 60, vecs, 4);
+    dictArray.push(pattern);
+    // たて直線
+    vecs = getVector(constSeq(300, 36), arSeq(125, 10, 36));
+    pattern = entity.getDirectCommand(3, 30, 40, vecs, 4);
+    dictArray.push(pattern);
+    // らせん
+    vecs = getPatternVector(6);
+    pattern = entity.getDirectCommand(2, 40, 50, vecs, 5);
+    dictArray.push(pattern);
+    // よこ直線
+    vecs = getVector(arSeq(125, 10, 36), constSeq(300, 36));
+    pattern = entity.getDirectCommand(3, 40, 30, vecs, 5);
+    dictArray.push(pattern);
+    // 最後は円形配置
+    vecs = getVector(arSinSeq(0, 2 * PI / 36, 36, 200, 300), arCosSeq(0, 2 * PI / 36, 36, 200, 300));
+    pattern = entity.getDirectCommand(2, 40, 40, vecs, 6);
     dictArray.push(pattern);
 
     return dictArray;
@@ -640,4 +684,74 @@ function reverseShuffle(array){
   let newArray = [];
   for(let i = 0; i < array.length; i++){ newArray.push(array[array.length - i - 1]); }
   return newArray;
+}
+
+// --------------------------------//
+// getPatternVector.
+function getPatternVector(patternIndex){
+  if(patternIndex === 0){
+    // 正方形
+    let posX = multiSeq(arSeq(150, 60, 6), 6);
+    let posY = jointSeq([constSeq(150, 6), constSeq(210, 6), constSeq(270, 6), constSeq(330, 6), constSeq(390, 6), constSeq(450, 6)]);
+    let vecs = getVector(posX, posY);
+    return commandShuffle(vecs, [0, 1, 6, 12, 7, 2, 3, 8, 13, 18, 24, 19, 14, 9, 4, 5, 10, 15, 20, 25, 30, 31, 26, 21, 16, 11, 17, 22, 27, 32, 33, 28, 23, 29, 34, 35]);
+  }else if(patternIndex === 1){
+    // 星型
+    let vecs = [createVector(300, 300)];
+    vecs = vecs.concat(rotationSeq(0, -48, 2 * PI / 5, 5, 300, 300));
+    vecs = vecs.concat(rotationSeq(0, -96, 2 * PI / 5, 5, 300, 300));
+    let d0 = 96 * sin(2 * PI / 10); // 中心から上に向かって辺に突き刺さるまでの距離
+    let d1 = 32 * sin(2 * PI / 10) * tan(2 * PI / 5); // そこからてっぺんまでの距離の1/3.
+    let d2 = 32 * sin(2 * PI / 10);
+    // segmentを作って2 * PI / 5ずつ回転させてまとめてゲットする
+    let posX = [0, d2, 2 * d2, -d2, -2 * d2];
+    let posY = [-d0 - 3 * d1, -d0 - 2 * d1, -d0 - d1, -d0 - 2 * d1, -d0 - d1];
+    let segmentVecs = getVector(posX, posY);
+    let aroundVecs = multiRotationSeq(segmentVecs, 2 * PI / 5, 5, 300, 300);
+    vecs = vecs.concat(aroundVecs);
+    return commandShuffle(vecs, [11, 26, 16, 31, 21, 15, 20, 25, 8, 9, 32, 27, 12, 30, 3, 4, 17, 35, 7, 2, 0, 5, 10, 22, 24, 1, 33, 19, 6, 28, 14, 29, 34, 23, 18, 13]);
+  }else if(patternIndex === 2){
+    // 十字型
+    let posX = jointSeq([arSeq(120, 40, 4), arSeq(120, 40, 4), constSeq(280, 10), constSeq(320, 10), arSeq(360, 40, 4), arSeq(360, 40, 4)]);
+    let posY = jointSeq([constSeq(280, 4), constSeq(320, 4), arSeq(120, 40, 10), arSeq(120, 40, 10), constSeq(280, 4), constSeq(320, 4)]);
+    let vecs = getVector(posX, posY);
+    return commandShuffle(vecs, [17, 27, 26, 16, 15, 25, 24, 14, 13, 7, 6, 5, 4, 23, 32, 33, 34, 35, 12, 3, 2, 1, 0, 22, 28, 29, 30, 31, 11, 21, 20, 10, 9, 19, 18, 8]);
+  }else if(patternIndex === 3){
+    // 三角形
+    let x, y;
+    let vecs = [];
+    for(let i = 0; i < 8; i++){
+      x = 300 - 15 * Math.sqrt(3) * i;
+      y = 90 + 45 * i;
+      vecs.push(createVector(x, y));
+      for(let k = 0; k < i; k++){
+        x += 30 * Math.sqrt(3);
+        vecs.push(createVector(x, y));
+      }
+    }
+    return vecs;
+  }else if(patternIndex === 4){
+    // ひし形4つ。
+    let r = 20 * Math.sqrt(3);
+    let posX = [0, 20, -20, 40, 0, -40, 20, -20, 0];
+    let posY = [40, 40 + r, 40 + r, 40 + 2 * r, 40 + 2 * r, 40 + 2 * r, 40 + 3 * r, 40 + 3 * r, 40 + 4 * r];
+    let segmentVecs = getVector(posX, posY);
+    let vecs = multiRotationSeq(segmentVecs, PI / 2, 4, 300, 300);
+    return commandShuffle(vecs, [33, 29, 25, 13, 17, 21, 9, 5, 1, 2, 6, 14, 0, 8, 20, 10, 18, 26, 4, 16, 28, 22, 30, 34, 12, 24, 32, 3, 7, 11, 23, 19, 15, 27, 31, 35]);
+  }else if(patternIndex === 5){
+    // 六角形
+    let r = 20 * Math.sqrt(3);
+    let posX = [r, 0, 2 * r, -r, r, 3 * r];
+    let posY = [60, 120, 120, 180, 180, 180];
+    let segmentVecs = getVector(posX, posY);
+    let vecs = multiRotationSeq(segmentVecs, PI / 3, 6, 300, 300);
+    return commandShuffle(vecs, [35, 29, 23, 30, 24, 12, 11, 17, 22, 28, 10, 5, 0, 6, 18, 31, 13, 1, 4, 16, 34, 21, 9, 3, 2, 7, 25, 19, 14, 8, 15, 27, 33, 20, 26, 32]);
+  }else if(patternIndex === 6){
+    // らせん
+    let vecs = [];
+    for(let k = 1; k <= 36; k++){
+      vecs.push(createVector(300 + (30 + 6 * k) * cos((2 * PI / 15) * k), 300 + (30 + 6 * k) * sin((2 * PI / 15) * k)));
+    }
+    return vecs;
+  }
 }
