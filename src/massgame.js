@@ -126,18 +126,18 @@ class entity{
     let dictArray = [];
     // とりあえず同じもの作ってみるか？初期位置中心でスタート。
     let vecs = getVector(arSeq(100, 10, 36), constSeq(300, 36));
-    let pattern = entity.getDirectCommand(2, 20, 20, vecs, 1);
+    let pattern = entity.getDirectCommand(2, 20, 60, vecs, 1);
     dictArray.push(pattern);
 
     vecs = getVector(constSeq(300, 36), arSeq(100, 12, 36));
-    pattern = entity.getDirectCommand(0, 30, 40, vecs, 4);
+    pattern = entity.getDirectCommand(0, 30, 60, vecs, 4);
     dictArray.push(pattern);
 
     pattern = entity.getRectCommand(7, 40, 60, 100, 100, 300, 300, 2);
     dictArray.push(pattern);
-    pattern = entity.getBandCommand(0, 50, 40, 170, 200, PI / 4, 7 * PI / 4, 300, 300, 5);
+    pattern = entity.getBandCommand(0, 50, 60, 170, 200, PI / 4, 7 * PI / 4, 300, 300, 5);
     dictArray.push(pattern);
-    pattern = entity.getEllipseCommand(3, 60, 40, 300, 300, 200, 50, 1);
+    pattern = entity.getEllipseCommand(3, 60, 60, 300, 300, 200, 50, 1);
     dictArray.push(pattern);
 
     return dictArray;
@@ -219,6 +219,9 @@ class constantFlow extends flow{
     // イージングかけるならここ。
     // なお今回actorごとに異なるconstantFlowを与えているのでこっちもちで・・それは邪道かなぁ。
     // いわゆる法ベクトルを装備できるので、それ使って簡単に・・ねぇ？
+
+    if(progress < 1){ progress = constantFlow.easing(8, progress); }
+
     let newX = map(progress, 0, 1, this.from.x, this.to.x);
     let newY = map(progress, 0, 1, this.from.y, this.to.y);
     _actor.setPos(newX, newY);
@@ -231,6 +234,17 @@ class constantFlow extends flow{
     this.from = createVector(v1.x, v1.y);
     this.to = createVector(v2.x, v2.y);
     this.actTime = actTime;
+  }
+  static easing(i, x){
+    if(i === 0){ return (50 / 23) * (-2 * pow(x, 3) + 3 * pow(x, 2) - 0.54 * x); } // バックインアウト
+    else if(i === 1){ return x + 0.1 * sin(8 * PI * x); } // ぐらぐら
+    else if(i === 2){ return -12 * pow(x, 3) + 18 * pow(x, 2) - 5 * x; } // 大きいバックインアウト
+    else if(i === 3){ return (x / 8) + (7 / 8) * pow(x, 4); } // ゆっくりぎゅーーーん
+    else if(i === 4){ return (7 / 8) + (x / 8) - (7 / 8) * pow(1 - x, 4); } // ぎゅーーんゆっくり
+    else if(i === 5){ return 0.5 * (1 - cos(PI * x)); } // ゆっくりぎゅーんゆっくり
+    else if(i === 6){ return log(x + 1) / log(2);  } // 対数的
+    else if(i === 7){ return pow(x, 6); } // 鋭く！
+    else if(i === 8){ return x * (3 * x - 2); } // おおきくバックからぎゅーん
   }
 }
 
