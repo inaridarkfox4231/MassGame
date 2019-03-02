@@ -4,6 +4,21 @@ let all; // 全体
 let backgroundColor;
 let hueSet; // カラーパレット
 
+// 主な変更点：
+// 現在SPANTIME及びWAITSPANとなっているところをactTime, pauseTimeとしてパターンのプロパティに追加。
+// finalActorとなっているところをanchor・・やめた、commanderにmainActorの配列を渡す。
+// アンカーはそこからcommander経由で参照する。flowの所属になってるけど変える。
+// （SIZE - 1で参照しているところをlength-1で参照する）
+// カラーコントロールはhueだけいじるように変更して背景色もsaturationは40か50くらいで固定してhueだけ変える。
+// 背景はactorとしてcommanderに所属させconstantFlow走らせて色変更、というか、
+// いわゆる単色グラフィックとしてdraw命令で最初に描画させることにする（応用が利く）。
+// さらに冒頭の演技をランダム配置からの円形へのチェンジにしてそこから正方形バリエーションという流れにする。
+// そのためにスタートの位置も若干工夫する。
+// しかもそのバリエーションを0番に配置するのでpatternChangeはちゃんとwaitingのconvert時に行うことができる。
+// これにより2箇所に分けて書く必要がなくなる。とりあえず、以上。
+
+// もうひとつ。delayは0, 1, 2, ...でいいよ。0がdelayなし。あとcommanderのdelayプロパティも廃止で。
+
 const COLOR_NUM = 7;
 
 //const INTERVAL = 3; // delayのinterval. // 可変にしてみる
@@ -69,29 +84,30 @@ class entity{
     // SIZE個のあれ。
     let vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 200, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 200, 300));
     vecs.push(createVector(300, 300));
-    console.log(vecs);
+    //console.log(vecs);
     for(let i = 0; i < SIZE; i++){ this.flows.push(new constantFlow(vecs[i], vecs[SIZE])); }
     for(let i = 0; i < SIZE; i++){ this.actors.push(new massCell(this.flows[i], 0, 0)); }
-    let waitFlow = new waiting(this.actors[SIZE - 1], 50); // finalActorを登録。
-    let cmder = new commander(waitFlow);
+    let waitFlow = new waiting(50); // finalActorを登録。
+    let troop = []; // 演技者の集団
+    for(let i = 0; i < SIZE; i++){ troop.push(all.actors[i]); }
+    let cmder = new commander(waitFlow, troop);
     let dictArray = entity.getCommandArray();
     cmder.setCommandArray(dictArray);
-
-    // ここでdelayの初期値を計算
-    cmder.delay = cmder.commandArray[0]['delay'];
-
-    let massGameActors = [];
-    for(let i = 0; i < SIZE; i++){ massGameActors.push(all.actors[i]); }
-    let commandAllFlow = new commandAll(massGameActors);
-    let commandDelayFlow = new commandDelay(massGameActors);
     this.actors.push(cmder); // 忘れてた. ていうかこれ上のやつに含めちゃまずいね。
+
+    // ここでdelayの初期値を計算→廃止
+    //cmder.delay = cmder.commandArray[0]['delay'];
+
+    let commandAllFlow = new commandAll(); // 引数をなくす
+    let commandDelayFlow = new commandDelay();
+
     // 接続
     waitFlow.addFlow(commandDelayFlow); // 0番にディレイ
     waitFlow.addFlow(commandAllFlow);
     commandDelayFlow.addFlow(waitFlow);
     commandAllFlow.addFlow(waitFlow);
     this.activateAll(); // 開始。。いけるの、これ？？
-    console.log('massgame start. %d', frameCount);
+    console.log('MassGame start. %d', frameCount);
   }
   update(){
     this.actors.forEach(function(a){ a.update(); })
@@ -123,70 +139,39 @@ class entity{
     pattern = entity.getEllipseCommand(3, 300, 300, 200, 50, 1);
     dictArray.push(pattern);
 
-    /*dict['delay'] = true;
-    dict['interval'] = 2;
-    dict['mode'] = 'direct';
-    dict['infoVectorArray'] = getVector(arSeq(100, 10, 36), constSeq(300, 36));
-    dict['figureId'] = 1;
-    dictArray.push(dict);
-    let dict2 = {};
-    dict2['delay'] = false;
-    dict2['mode'] = 'direct';
-    dict2['infoVectorArray'] = getVector(constSeq(300, 36), arSeq(100, 12, 36));
-    dict2['figureId'] = 4;
-    dictArray.push(dict2);
-    let dict3 = {};
-    dict3['delay'] = true;
-    dict3['interval'] = 7;
-    dict3['mode'] = 'rect';
-    dict3['infoVectorArray'] = getVector([100, 300], [100, 300]);
-    dict3['figureId'] = 2;
-    dictArray.push(dict3);
-    let dict4 = {};
-    dict4['delay'] = false;
-    dict4['mode'] = 'band';
-    dict4['infoVectorArray'] = getVector([170, 0, 300], [200, 2 * PI, 300]);
-    dict4['figureId'] = 5;
-    dictArray.push(dict4);
-    let dict5 = {};
-    dict5['delay'] = true;
-    dict5['interval'] = 3;
-    dict5['mode'] = 'ellipse';
-    dict5['infoVectorArray'] = getVector([300, 200], [300, 50]);
-    dict5['figureId'] = 1;
-    dictArray.push(dict5);*/
     return dictArray;
   }
-  static getDirectCommand(delayValue, infoVectorArray, figureId){
+  static getDirectCommand(delay, infoVectorArray, figureId){
     let dict = {};
-    entity.preSetting(dict, delayValue, figureId);
+    entity.preSetting(dict, delay, figureId);
     dict['mode'] = 'direct';
     dict['infoVectorArray'] = infoVectorArray;
     return dict;
   }
-  static getRectCommand(delayValue, left, up, right, down, figureId){
+  static getRectCommand(delay, left, up, right, down, figureId){
     let dict = {};
-    entity.preSetting(dict, delayValue, figureId);
+    entity.preSetting(dict, delay, figureId);
     dict['mode'] = 'rect'
     dict['infoVectorArray'] = getVector([left, right], [up, down]);
     return dict;
   }
-  static getEllipseCommand(delayValue, centerX, centerY, radiusX, radiusY, figureId){
+  static getEllipseCommand(delay, centerX, centerY, radiusX, radiusY, figureId){
     let dict = {};
-    entity.preSetting(dict, delayValue, figureId);
+    entity.preSetting(dict, delay, figureId);
     dict['mode'] = 'ellipse';
     dict['infoVectorArray'] = getVector([centerX, radiusX], [centerY, radiusY]);
     return dict;
   }
-  static getBandCommand(delayValue, minRadius, maxRadius, minAngle, maxAngle, centerX, centerY, figureId){
+  static getBandCommand(delay, minRadius, maxRadius, minAngle, maxAngle, centerX, centerY, figureId){
     let dict = {};
-    entity.preSetting(dict, delayValue, figureId);
+    entity.preSetting(dict, delay, figureId);
     dict['mode'] = 'band';
     dict['infoVectorArray'] = getVector([minRadius, minAngle, centerX], [maxRadius, maxAngle, centerY]);
     return dict;
   }
-  static preSetting(dict, delayValue, figureId){
-    if(delayValue > 0){ dict['delay'] = true; dict['interval'] = delayValue; }else{ dict['delay'] = false; }
+  static preSetting(dict, delay, figureId){
+    //if(delayValue > 0){ dict['delay'] = true; dict['interval'] = delayValue; }else{ dict['delay'] = false; }
+    dict['delay'] = delay; // intervalは廃止してdelayの0か正かで判断することに。
     dict['figureId'] = figureId;
   }
 }
@@ -222,11 +207,14 @@ class constantFlow extends flow{
   getProgress(_actor){
     let cnt = _actor.timer.getCnt();
     if(cnt >= SPANTIME){ return 1; }
-    return cnt / SPANTIME; // イージングかけるならここ。
+    return cnt / SPANTIME;
   }
   execute(_actor){
     _actor.timer.step(); // stepはこっちに書くのが普通じゃん？
     let progress = this.getProgress(_actor);
+    // イージングかけるならここ。
+    // なお今回actorごとに異なるconstantFlowを与えているのでこっちもちで・・それは邪道かなぁ。
+    // いわゆる法ベクトルを装備できるので、それ使って簡単に・・ねぇ？
     let newX = map(progress, 0, 1, this.from.x, this.to.x);
     let newY = map(progress, 0, 1, this.from.y, this.to.y);
     _actor.setPos(newX, newY);
@@ -241,57 +229,61 @@ class constantFlow extends flow{
   }
 }
 
-// まとめて指示
-class commandAll extends flow{
-  constructor(actorArray){
-    super();
-    this.actorArray = actorArray;
-  }
-  initialize(_actor){ console.log("All %d", frameCount); }
-  execute(_actor){
-    this.actorArray.forEach(function(a){ _actor.command(a); }) // commandはあとで実装する
-    _actor.setState(COMPLETED);
-    _actor.shiftCommand(); // 次の命令
-  }
-}
-// commandは辞書の配列を使っていろいろ指示するもの（その中にはactivateも入っている）
-
 // ディレイ
 // 指定したインターバルごとに個々のあれをactiveさせる（allのメソッドを使う）
 class commandDelay extends flow{
-  constructor(actorArray){
+  constructor(){
     super();
-    this.actorArray = actorArray;
-    this.interval = 1; // 可変
+    //this.actorArray = actorArray;
+    this.delay = 1; // 可変
   }
   initialize(_actor){
     console.log("Delay %d", frameCount);
-    this.interval = _actor.commandArray[_actor.currentIndex]['interval'];
+    this.delay = _actor.commandArray[_actor.currentIndex]['delay'];
     _actor.timer.reset();
   }
   execute(_actor){
     _actor.timer.step();
     let cnt = _actor.timer.getCnt();
-    if(cnt % this.interval === 0){ _actor.command(this.actorArray[Math.floor(cnt / this.interval) - 1]); }
-    if(cnt === this.actorArray.length * this.interval){
+    //if(cnt % this.interval === 0){ _actor.command(this.actorArray[Math.floor(cnt / this.interval) - 1]); }
+    //if(cnt === this.actorArray.length * this.interval){
+    if(cnt % this.delay === 0){ _actor.command(_actor.troop[Math.floor(cnt / this.delay) - 1]); }
+    if(cnt === _actor.troop.length * this.delay){
       _actor.setState(COMPLETED);
       _actor.shiftCommand(); // 次の命令
     }
   }
 }
 
+// まとめて指示
+class commandAll extends flow{
+  constructor(){
+    super();
+    //this.actorArray = actorArray;
+  }
+  initialize(_actor){ console.log("All %d", frameCount); }
+  execute(_actor){
+    _actor.troop.forEach(function(a){ _actor.command(a); }) // troopの各メンバーに命令
+    //this.actorArray.forEach(function(a){ _actor.command(a); }) // commandはあとで実装する
+    _actor.setState(COMPLETED);
+    _actor.shiftCommand(); // 次の命令
+  }
+}
+// commandは辞書の配列を使っていろいろ指示するもの（その中にはactivateも入っている）
+
 // 待機命令
 // 35番がactiveの間は何もしない
 // 35番がnon-activeになったら60カウントしたのちconvert. commanderのデフォルト。
 class waiting extends flow{
-  constructor(finalActor, span){
+  constructor(span){
     super();
-    this.finalActor = finalActor;
+    //this.finalActor = finalActor; // commanderのanchorプロパティとして参照
     this.span = span;
   }
   initialize(_actor){ _actor.timer.reset(); }
   execute(_actor){
-    if(this.finalActor.isActive){ return; }
+    //if(this.finalActor.isActive){ return; }
+    if(_actor.anchor.isActive){ return; } // アンカーが演技中の時は何もしない
     _actor.timer.step();
     if(_actor.timer.getCnt() === this.span){ _actor.setState(COMPLETED); }
     //console.log('execute.');
@@ -299,8 +291,13 @@ class waiting extends flow{
   convert(_actor){
     console.log('complete. %d', frameCount);
     //_actor.shiftCommand(); // 次の命令
-    if(_actor.delay){ _actor.currentFlow = this.convertList[0]; }
-    else{ _actor.currentFlow = this.convertList[1]; } // delayかけるときは0, そうでなければ1に渡す
+    //console.log(_actor.commandArray);
+    let delay = _actor.commandArray[_actor.currentIndex]['delay']; // 0がdelayなしの意味
+    if(delay > 0){ _actor.currentFlow = this.convertList[0]; } // delayかけるときは0番
+    else{ _actor.currentFlow = this.convertList[1]; } // かけないときは1番
+    console.log(_actor.currentFlow);
+    //if(_actor.delay){ _actor.currentFlow = this.convertList[0]; }
+    //else{ _actor.currentFlow = this.convertList[1]; } // delayかけるときは0, そうでなければ1に渡す
   }  // delayはcommanderのプロパティ
 }
 
@@ -466,18 +463,20 @@ class figure{
 
 // 司令塔
 class commander extends actor{
-  constructor(f = undefined){
+  constructor(f = undefined, troop){
     super(f);
     this.commandArray = []; // 辞書の配列。constantFlowの位置決定などに関する情報が入っている。順繰りに・・
     this.currentIndex = 0; // 演技の番号みたいなやつ
-    this.delay = false; // 該当する演技がdelayかどうか。
+    //this.delay = false; // 該当する演技がdelayかどうか。
+    this.troop = troop; // メインアクターの配列(troop)
+    this.anchor = this.troop[this.troop.length - 1]; // アンカー（最後に演技する人）
   }
   setCommandArray(dictArray){
     this.commandArray = dictArray;
   }
   shiftCommand(){
     let index = (this.currentIndex + 1) % this.commandArray.length;
-    if(this.commandArray[index]['delay']){ this.delay = true; }else{ this.delay = false; }
+    //if(this.commandArray[index]['delay']){ this.delay = true; }else{ this.delay = false; }
     this.currentIndex = index; // せってい
   }
   command(target){
