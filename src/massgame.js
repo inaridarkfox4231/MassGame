@@ -82,7 +82,7 @@ class entity{
     //vecs.push(createVector(300, 300));
     //v = createVector(300, 300);
     // これで初期位置が(300, 300)になる。
-    for(let i = 0; i < SIZE; i++){ this.flows.push(new constantFlow(createVector(300, 300), createVector(0, 0))); }
+    for(let i = 0; i < SIZE; i++){ this.flows.push(new constantFlow(createVector(300, 300), createVector(0, 0), 60)); }
     for(let i = 0; i < SIZE; i++){ this.actors.push(new massCell(this.flows[i], 0, 0)); }
     // commanderの準備として一連のflowとあとtroopを準備する
     let commandAllFlow = new commandAll(); // 引数をなくす
@@ -126,54 +126,55 @@ class entity{
     let dictArray = [];
     // とりあえず同じもの作ってみるか？初期位置中心でスタート。
     let vecs = getVector(arSeq(100, 10, 36), constSeq(300, 36));
-    let pattern = entity.getDirectCommand(2, 20, vecs, 1);
+    let pattern = entity.getDirectCommand(2, 20, 20, vecs, 1);
     dictArray.push(pattern);
 
     vecs = getVector(constSeq(300, 36), arSeq(100, 12, 36));
-    pattern = entity.getDirectCommand(0, 30, vecs, 4);
+    pattern = entity.getDirectCommand(0, 30, 40, vecs, 4);
     dictArray.push(pattern);
 
-    pattern = entity.getRectCommand(7, 40, 100, 100, 300, 300, 2);
+    pattern = entity.getRectCommand(7, 40, 60, 100, 100, 300, 300, 2);
     dictArray.push(pattern);
-    pattern = entity.getBandCommand(0, 50, 170, 200, PI / 4, 7 * PI / 4, 300, 300, 5);
+    pattern = entity.getBandCommand(0, 50, 40, 170, 200, PI / 4, 7 * PI / 4, 300, 300, 5);
     dictArray.push(pattern);
-    pattern = entity.getEllipseCommand(3, 60, 300, 300, 200, 50, 1);
+    pattern = entity.getEllipseCommand(3, 60, 40, 300, 300, 200, 50, 1);
     dictArray.push(pattern);
 
     return dictArray;
   }
-  static getDirectCommand(delay, pauseTime, infoVectorArray, figureId){
+  static getDirectCommand(delay, pauseTime, actTime, infoVectorArray, figureId){
     let dict = {};
-    entity.preSetting(dict, delay, pauseTime, figureId);
+    entity.preSetting(dict, delay, pauseTime, actTime, figureId);
     dict['mode'] = 'direct';
     dict['infoVectorArray'] = infoVectorArray;
     return dict;
   }
-  static getRectCommand(delay, pauseTime, left, up, right, down, figureId){
+  static getRectCommand(delay, pauseTime, actTime, left, up, right, down, figureId){
     let dict = {};
-    entity.preSetting(dict, delay, pauseTime, figureId);
+    entity.preSetting(dict, delay, pauseTime, actTime, figureId);
     dict['mode'] = 'rect'
     dict['infoVectorArray'] = getVector([left, right], [up, down]);
     return dict;
   }
-  static getEllipseCommand(delay, pauseTime, centerX, centerY, radiusX, radiusY, figureId){
+  static getEllipseCommand(delay, pauseTime, actTime, centerX, centerY, radiusX, radiusY, figureId){
     let dict = {};
-    entity.preSetting(dict, delay, pauseTime, figureId);
+    entity.preSetting(dict, delay, pauseTime, actTime, figureId);
     dict['mode'] = 'ellipse';
     dict['infoVectorArray'] = getVector([centerX, radiusX], [centerY, radiusY]);
     return dict;
   }
-  static getBandCommand(delay, pauseTime, minRadius, maxRadius, minAngle, maxAngle, centerX, centerY, figureId){
+  static getBandCommand(delay, pauseTime, actTime, minRadius, maxRadius, minAngle, maxAngle, centerX, centerY, figureId){
     let dict = {};
-    entity.preSetting(dict, delay, pauseTime, figureId);
+    entity.preSetting(dict, delay, pauseTime, actTime, figureId);
     dict['mode'] = 'band';
     dict['infoVectorArray'] = getVector([minRadius, minAngle, centerX], [maxRadius, maxAngle, centerY]);
     return dict;
   }
-  static preSetting(dict, delay, pauseTime, figureId){
+  static preSetting(dict, delay, pauseTime, actTime, figureId){
     //if(delayValue > 0){ dict['delay'] = true; dict['interval'] = delayValue; }else{ dict['delay'] = false; }
     dict['delay'] = delay; // intervalは廃止してdelayの0か正かで判断することに。
     dict['pauseTime'] = pauseTime;
+    dict['actTime'] = actTime;
     dict['figureId'] = figureId;
   }
 }
@@ -195,12 +196,13 @@ class flow{
 // コンスタントフロー
 // 移動表現 // massCellのデフォルト
 class constantFlow extends flow{
-  constructor(from, to){
+  constructor(from, to, actTime){
     // fromからtoまでspanTime数のフレームで移動しますよ
     super();
     this.from = createVector(from.x, from.y);
     this.to = createVector(to.x, to.y);
     //console.log(this.from);
+    this.actTime = actTime; // 基本60.
   }
   initialize(_actor){
     //console.log('move start. %d', frameCount);
@@ -208,8 +210,8 @@ class constantFlow extends flow{
   }
   getProgress(_actor){
     let cnt = _actor.timer.getCnt();
-    if(cnt >= SPANTIME){ return 1; }
-    return cnt / SPANTIME;
+    if(cnt >= this.actTime){ return 1; }
+    return cnt / this.actTime;
   }
   execute(_actor){
     _actor.timer.step(); // stepはこっちに書くのが普通じゃん？
@@ -225,9 +227,10 @@ class constantFlow extends flow{
       //console.log('move complete. %d', frameCount)
     } // 終了命令忘れた
   }
-  setting(v1, v2){ // セット関数
+  setting(v1, v2, actTime){ // セット関数
     this.from = createVector(v1.x, v1.y);
     this.to = createVector(v2.x, v2.y);
+    this.actTime = actTime;
   }
 }
 
@@ -511,7 +514,7 @@ class commander extends actor{
       v = vecs[member.index];
       //console.log(v);
     }
-    member.currentFlow.setting(member.pos, v); // fromを現在位置、toを目的地に設定
+    member.currentFlow.setting(member.pos, v, dict['actTime']); // fromを現在位置、toを目的地に設定
     member.changeFigure(dict['figureId']); // 姿を変える
     member.activate(); // 起動。
   }
