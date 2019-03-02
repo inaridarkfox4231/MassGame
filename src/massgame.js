@@ -6,7 +6,7 @@ let hueSet; // カラーパレット
 
 const COLOR_NUM = 7;
 
-const INTERVAL = 3; // delayのinterval.
+//const INTERVAL = 3; // delayのinterval. // 可変にしてみる
 const SPANTIME = 60; // 演技にかかる時間
 const WAITSPAN = 60; // 全員演技終わってから再スタートまでのspan
 const SIZE = 36; // 変えられるのかどうか知らない。知らないけど。
@@ -107,8 +107,24 @@ class entity{
     // あとは然るべき規則でここに書き込めば勝手にパターンを次々と演じてくれる。
     // フレーム数調べてカラコン用意してconstantFlow走らせれば色も変えられます。以上。
     let dictArray = [];
-    let dict = {};
-    dict['delay'] = true;
+    // とりあえず同じもの作ってみるか？
+    let vecs = getVector(arSeq(100, 10, 36), constSeq(300, 36));
+    let pattern = entity.getDirectCommand(2, vecs, 1);
+    dictArray.push(pattern);
+
+    vecs = getVector(constSeq(300, 36), arSeq(100, 12, 36));
+    pattern = entity.getDirectCommand(0, vecs, 4);
+    dictArray.push(pattern);
+
+    pattern = entity.getRectCommand(7, 100, 100, 300, 300, 2);
+    dictArray.push(pattern);
+    pattern = entity.getBandCommand(0, 170, 200, PI / 4, 7 * PI / 4, 300, 300, 5);
+    dictArray.push(pattern);
+    pattern = entity.getEllipseCommand(3, 300, 300, 200, 50, 1);
+    dictArray.push(pattern);
+
+    /*dict['delay'] = true;
+    dict['interval'] = 2;
     dict['mode'] = 'direct';
     dict['infoVectorArray'] = getVector(arSeq(100, 10, 36), constSeq(300, 36));
     dict['figureId'] = 1;
@@ -121,11 +137,57 @@ class entity{
     dictArray.push(dict2);
     let dict3 = {};
     dict3['delay'] = true;
+    dict3['interval'] = 7;
     dict3['mode'] = 'rect';
     dict3['infoVectorArray'] = getVector([100, 300], [100, 300]);
     dict3['figureId'] = 2;
     dictArray.push(dict3);
+    let dict4 = {};
+    dict4['delay'] = false;
+    dict4['mode'] = 'band';
+    dict4['infoVectorArray'] = getVector([170, 0, 300], [200, 2 * PI, 300]);
+    dict4['figureId'] = 5;
+    dictArray.push(dict4);
+    let dict5 = {};
+    dict5['delay'] = true;
+    dict5['interval'] = 3;
+    dict5['mode'] = 'ellipse';
+    dict5['infoVectorArray'] = getVector([300, 200], [300, 50]);
+    dict5['figureId'] = 1;
+    dictArray.push(dict5);*/
     return dictArray;
+  }
+  static getDirectCommand(delayValue, infoVectorArray, figureId){
+    let dict = {};
+    entity.preSetting(dict, delayValue, figureId);
+    dict['mode'] = 'direct';
+    dict['infoVectorArray'] = infoVectorArray;
+    return dict;
+  }
+  static getRectCommand(delayValue, left, up, right, down, figureId){
+    let dict = {};
+    entity.preSetting(dict, delayValue, figureId);
+    dict['mode'] = 'rect'
+    dict['infoVectorArray'] = getVector([left, right], [up, down]);
+    return dict;
+  }
+  static getEllipseCommand(delayValue, centerX, centerY, radiusX, radiusY, figureId){
+    let dict = {};
+    entity.preSetting(dict, delayValue, figureId);
+    dict['mode'] = 'ellipse';
+    dict['infoVectorArray'] = getVector([centerX, radiusX], [centerY, radiusY]);
+    return dict;
+  }
+  static getBandCommand(delayValue, minRadius, maxRadius, minAngle, maxAngle, centerX, centerY, figureId){
+    let dict = {};
+    entity.preSetting(dict, delayValue, figureId);
+    dict['mode'] = 'band';
+    dict['infoVectorArray'] = getVector([minRadius, minAngle, centerX], [maxRadius, maxAngle, centerY]);
+    return dict;
+  }
+  static preSetting(dict, delayValue, figureId){
+    if(delayValue > 0){ dict['delay'] = true; dict['interval'] = delayValue; }else{ dict['delay'] = false; }
+    dict['figureId'] = figureId;
   }
 }
 
@@ -185,7 +247,7 @@ class commandAll extends flow{
     super();
     this.actorArray = actorArray;
   }
-  initialize(_actor){ console.log("All"); }
+  initialize(_actor){ console.log("All %d", frameCount); }
   execute(_actor){
     this.actorArray.forEach(function(a){ _actor.command(a); }) // commandはあとで実装する
     _actor.setState(COMPLETED);
@@ -200,16 +262,18 @@ class commandDelay extends flow{
   constructor(actorArray){
     super();
     this.actorArray = actorArray;
+    this.interval = 1; // 可変
   }
   initialize(_actor){
-    console.log("Delay");
+    console.log("Delay %d", frameCount);
+    this.interval = _actor.commandArray[_actor.currentIndex]['interval'];
     _actor.timer.reset();
   }
   execute(_actor){
     _actor.timer.step();
     let cnt = _actor.timer.getCnt();
-    if(cnt % INTERVAL === 0){ _actor.command(this.actorArray[Math.floor(cnt / INTERVAL) - 1]); }
-    if(cnt === this.actorArray.length * INTERVAL){
+    if(cnt % this.interval === 0){ _actor.command(this.actorArray[Math.floor(cnt / this.interval) - 1]); }
+    if(cnt === this.actorArray.length * this.interval){
       _actor.setState(COMPLETED);
       _actor.shiftCommand(); // 次の命令
     }
@@ -233,7 +297,7 @@ class waiting extends flow{
     //console.log('execute.');
   }
   convert(_actor){
-    //console.log('complete. %d', frameCount);
+    console.log('complete. %d', frameCount);
     //_actor.shiftCommand(); // 次の命令
     if(_actor.delay){ _actor.currentFlow = this.convertList[0]; }
     else{ _actor.currentFlow = this.convertList[1]; } // delayかけるときは0, そうでなければ1に渡す
@@ -420,19 +484,22 @@ class commander extends actor{
     let dict = this.commandArray[this.currentIndex];
     let vecs = dict['infoVectorArray'];
     let mode = dict['mode'];
-    let nextDestination = createVector();
-    let v; // toに相当する
-    if(mode === 'rect'){
+    let v; // toに相当するベクトル
+    if(mode === 'rect'){ // 矩形
       let x, y;
       x = map(random(1), 0, 1, vecs[0].x, vecs[1].x);
       y = map(random(1), 0, 1, vecs[0].y, vecs[1].y);
       v = createVector(x, y);
-      //console.log("%d %d", v.x, v.y)
-    }else if(mode === 'circle'){
+    }else if(mode === 'ellipse'){ // 円形
       let r, theta;
-      r = random(1);
+      r = random(1); // vecs[0]が中心でvecs[1]は楕円の横半径と縦半径。
       theta = random(2 * PI);
       v = createVector(vecs[0].x + vecs[1].x * r * cos(theta), vecs[0].y + vecs[1].y * r * sin(theta));
+    }else if(mode === 'band'){ // 帯
+      let r, theta;
+      r = vecs[0].x + random(vecs[0].y - vecs[0].x); // 帯の最小と最大
+      theta = vecs[1].x + random(vecs[1].y - vecs[1].x) // 角度
+      v = createVector(vecs[2].x + r * cos(theta), vecs[2].y + r * sin(theta));
     }else{
       // ダイレクト指示
       v = vecs[target.index];
