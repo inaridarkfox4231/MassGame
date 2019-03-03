@@ -126,7 +126,7 @@ class entity{
     dictArray.push(pattern);
     // まずは右下かぎ型.
     vecs = getPatternVector(10);
-    pattern = entity.getDirectCommand(2, 40, 40, vecs, 7, 5);
+    pattern = entity.getDirectCommand(2, 40, 60, vecs, 7, 5);
     dictArray.push(pattern);
     // 次に正方形.
     vecs = getPatternVector(0);
@@ -134,27 +134,27 @@ class entity{
     dictArray.push(pattern);
     // 下向き扇状
     vecs = getPatternVector(9);
-    pattern = entity.getDirectCommand(2, 40, 40, vecs, 0, 13);
+    pattern = entity.getDirectCommand(2, 40, 60, vecs, 0, 13);
     dictArray.push(pattern);
     // 星型。
     vecs = getPatternVector(1);
-    pattern = entity.getDirectCommand(4, 50, 60, vecs, 1, 17);
+    pattern = entity.getDirectCommand(4, 50, 70, vecs, 1, 17);
     dictArray.push(pattern);
     // 十字型。
     vecs = getPatternVector(2);
-    pattern = entity.getDirectCommand(2, 50, 40, vecs, 1, 26);
+    pattern = entity.getDirectCommand(3, 50, 70, vecs, 1, 26);
     dictArray.push(pattern);
     // 三角形。
     vecs = getPatternVector(3);
-    pattern = entity.getDirectCommand(1, 50, 40, vecs, 2, 35);
+    pattern = entity.getDirectCommand(2, 50, 70, vecs, 2, 35);
     dictArray.push(pattern);
     // 右向き扇状
     vecs = getPatternVector(7);
-    pattern = entity.getDirectCommand(2, 40, 40, vecs, 2, 43);
+    pattern = entity.getDirectCommand(2, 50, 60, vecs, 2, 43);
     dictArray.push(pattern);
     // ひし形4つ
     vecs = getPatternVector(4);
-    pattern = entity.getDirectCommand(4, 50, 60, vecs, 3, 52);
+    pattern = entity.getDirectCommand(4, 50, 70, vecs, 3, 52);
     dictArray.push(pattern);
     // 左向き扇状
     vecs = getPatternVector(8);
@@ -166,21 +166,20 @@ class entity{
     dictArray.push(pattern);
     // たて直線
     vecs = getVector(constSeq(300, 36), arSeq(125, 10, 36));
-    pattern = entity.getDirectCommand(3, 30, 40, vecs, 4, 72);
+    pattern = entity.getDirectCommand(3, 50, 60, vecs, 4, 72);
     dictArray.push(pattern);
     // らせん
     vecs = getPatternVector(6);
-    pattern = entity.getDirectCommand(2, 40, 50, vecs, 5, 80);
+    pattern = entity.getDirectCommand(2, 50, 50, vecs, 5, 80);
     dictArray.push(pattern);
     // よこ直線
     vecs = getVector(arSeq(125, 10, 36), constSeq(300, 36));
-    pattern = entity.getDirectCommand(3, 40, 30, vecs, 5, 90);
+    pattern = entity.getDirectCommand(3, 50, 60, vecs, 5, 90);
     dictArray.push(pattern);
     // 最後は円形配置
     vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 200, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 200, 300));
-    pattern = entity.getDirectCommand(2, 40, 40, vecs, 6, 100);
+    pattern = entity.getDirectCommand(2, 30, 60, vecs, 6, 100);
     dictArray.push(pattern);
-
     return dictArray;
   }
   static getDirectCommand(delay, pauseTime, actTime, infoVectorArray, figureId, nextHue){
@@ -254,6 +253,7 @@ class constantFlow extends flow{
   getProgress(_actor){
     let cnt = _actor.timer.getCnt();
     if(cnt >= this.actTime){ return 1; }
+    _actor.diffAngle = random(2 * PI);
     return cnt / this.actTime;
   }
   execute(_actor){
@@ -263,10 +263,16 @@ class constantFlow extends flow{
     // なお今回actorごとに異なるconstantFlowを与えているのでこっちもちで・・それは邪道かなぁ。
     // いわゆる法ベクトルを装備できるので、それ使って簡単に・・ねぇ？
 
-    if(progress < 1){ progress = constantFlow.easing(8, progress); }
+    if(progress < 1){ progress = constantFlow.easing(0, progress); }
 
     let newX = map(progress, 0, 1, this.from.x, this.to.x);
     let newY = map(progress, 0, 1, this.from.y, this.to.y);
+
+    // ここ。
+		newX += 10 * sin(2 * PI * progress) * cos(_actor.diffAngle);
+		newY += 10 * sin(2 * PI * progress) * sin(_actor.diffAngle);
+		_actor.diffAngle += (random(1) < 0.5 ? 0.05 : -0.05);
+
     _actor.setPos(newX, newY);
     let newHue = map(progress, 0, 1, this.fromHue, this.toHue);
     _actor.changeColor(newHue, 100);
@@ -380,6 +386,7 @@ class actor{
     this.timer = new counter();
     this.isActive = false;
     this.state = IDLE;
+    this.diffAngle = 0; // 摂動
   }
   activate(){ this.isActive = true; }
   inActivate(){ this.isActive = false; }
