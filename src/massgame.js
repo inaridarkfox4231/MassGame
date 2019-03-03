@@ -43,7 +43,7 @@ function draw(){
   all.update();
   all.draw();
   // デバッグ用
-  push();
+  /*push();
   fill('red');
   rect(0, 0, 40, 40);
   fill('blue')
@@ -51,17 +51,18 @@ function draw(){
   fill(0);
   text('stop', 10, 20);
   text('start', 10, 60);
-  pop();
+  pop();*/
 }
 
 // デバッグ用
+/*
 function mouseClicked(){
   if(mouseX < 40 && mouseY < 80){
     if(mouseY < 40){ noLoop(); }
     else{ loop(); }
     return;
   }
-}
+}*/
 
 class counter{
   constructor(){
@@ -118,9 +119,7 @@ class entity{
   static getCommandArray(){
     // dictの配列を返す。これはcommanderにセットされる。
     // あとは然るべき規則でここに書き込めば勝手にパターンを次々と演じてくれる。
-    // フレーム数調べてカラコン用意してconstantFlow走らせれば色も変えられます。以上。
     let dictArray = [];
-    // とりあえず同じもの作ってみるか？初期位置中心でスタート。
     // まず中心にぎゅっ。
     let vecs = getVector(constSeq(300, SIZE), constSeq(300, SIZE));
     let pattern = entity.getDirectCommand(0, 30, 60, vecs, 7, 2);
@@ -131,7 +130,7 @@ class entity{
     dictArray.push(pattern);
     // 次に正方形.
     vecs = getPatternVector(0);
-    pattern = entity.getDirectCommand(2, 50, 30, vecs, 0, 10);
+    pattern = entity.getDirectCommand(4, 50, 60, vecs, 0, 10);
     dictArray.push(pattern);
     // 下向き扇状
     vecs = getPatternVector(9);
@@ -139,7 +138,7 @@ class entity{
     dictArray.push(pattern);
     // 星型。
     vecs = getPatternVector(1);
-    pattern = entity.getDirectCommand(4, 50, 40, vecs, 1, 17);
+    pattern = entity.getDirectCommand(4, 50, 60, vecs, 1, 17);
     dictArray.push(pattern);
     // 十字型。
     vecs = getPatternVector(2);
@@ -155,7 +154,7 @@ class entity{
     dictArray.push(pattern);
     // ひし形4つ
     vecs = getPatternVector(4);
-    pattern = entity.getDirectCommand(4, 70, 40, vecs, 3, 52);
+    pattern = entity.getDirectCommand(4, 50, 60, vecs, 3, 52);
     dictArray.push(pattern);
     // 左向き扇状
     vecs = getPatternVector(8);
