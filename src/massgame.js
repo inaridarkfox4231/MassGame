@@ -386,7 +386,7 @@ class actor{
     this.timer = new counter();
     this.isActive = false;
     this.state = IDLE;
-    this.diffAngle = 0; // 摂動
+    this.diffAngle = 0; // 摂動. 加減が難しいな。
   }
   activate(){ this.isActive = true; }
   inActivate(){ this.isActive = false; }
