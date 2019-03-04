@@ -64,7 +64,11 @@ class entity{
     // 接続
     waitFlow.addFlow(commandDelayFlow); // 0番にディレイ
     waitFlow.addFlow(commandAllFlow);
+    commandDelayFlow.addFlow(commandDelayFlow);
+    commandDelayFlow.addFlow(commandAllFlow);
     commandDelayFlow.addFlow(waitFlow);
+    commandAllFlow.addFlow(commandDelayFlow);
+    commandAllFlow.addFlow(commandAllFlow); // 行先を追加
     commandAllFlow.addFlow(waitFlow);
     // activateするのは設定した後なのでcommanderだけactivateする。つまりIDLEかつnon-Activeってことね。
     // 命令を受けてconstantFlowが完成した直後にactivateされるという仕掛け。
@@ -315,6 +319,9 @@ class commandDelay extends flow{
       //_actor.shiftCommand(); // 次の命令
     }
   }
+  convert(_actor){
+    _actor.currentFlow = this.convertList[2];
+  }
 }
 
 // まとめて指示
@@ -326,6 +333,9 @@ class commandAll extends flow{
   execute(_actor){
     _actor.troop.forEach(function(a){ _actor.command(a); }) // troopの各メンバーに命令
     _actor.setState(COMPLETED);
+  }
+  convert(_actor){
+    _actor.currentFlow = this.convertList[2];
   }
 }
 // commandは辞書の配列を使っていろいろ指示するもの（その中にはactivateも入っている）
@@ -351,10 +361,11 @@ class waiting extends flow{
   }
   convert(_actor){
     console.log('complete. %d', frameCount);
-    _actor.shiftCommand(); // 次の命令
-    let delay = _actor.commandArray[_actor.currentIndex]['delay']; // 0がdelayなしの意味
-    if(delay > 0){ _actor.currentFlow = this.convertList[0]; } // delayかけるときは0番
-    else{ _actor.currentFlow = this.convertList[1]; } // かけないときは1番
+    let flag = _actor.shiftCommand(); // 次の命令
+    //let delay = _actor.commandArray[_actor.currentIndex]['delay']; // 0がdelayなしの意味
+    //if(delay > 0){ _actor.currentFlow = this.convertList[0]; } // delayかけるときは0番
+    //else{ _actor.currentFlow = this.convertList[1]; } // かけないときは1番
+    _actor.currentFlow = this.convertList[flag];
   }  // delayはcommanderのプロパティ
 }
 
@@ -534,6 +545,8 @@ class commander extends actor{
   shiftCommand(){
     let index = (this.currentIndex + 1) % this.commandArray.length;
     this.currentIndex = index; // せってい
+    let delay = this.commandArray[this.currentIndex]['delay'];
+    return (delay > 0 ? 0 : 1); // delay>0なら0を返す. でなければ1を返す。
   }
   command(member){
     // targetというか各メンバーに
