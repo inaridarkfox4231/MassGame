@@ -31,10 +31,19 @@ function draw(){
 class counter{
   constructor(){
     this.cnt = 0;
+    this.limit = 0; // まずはlimitを復活させる
   }
   getCnt(){ return this.cnt; }
-  reset(){ this.cnt = 0; }
+  setting(limit){
+    this.cnt = 0;
+    this.limit = limit; // limitを登録
+  }
   step(){ this.cnt++; }
+  getProgress(){
+    // if(this.limit < 0){ return this.cnt; }
+    if(this.cnt === this.limit){ return 1; }
+    return this.cnt / this.limit;
+  }
 }
 
 // 統括する存在
@@ -90,23 +99,23 @@ class entity{
     let dictArray = [];
     // まず中心にぎゅっ。
     let vecs = getVector(constSeq(300, SIZE), constSeq(300, SIZE));
-    let pattern = entity.getDirectCommand(0, 40, 60, vecs, 7, 2);
+    let pattern = entity.getDirectCommand(0, 0, 60, vecs, 7, 2);
     dictArray.push(pattern);
     // まずは右下かぎ型.
     vecs = getPatternVector(10);
-    pattern = entity.getDirectCommand(2, 40, 40, vecs, 7, 5);
+    pattern = entity.getDirectCommand(2, 0, 40, vecs, 7, 5);
     dictArray.push(pattern);
     // 次に正方形.
     vecs = getPatternVector(0);
-    pattern = entity.getDirectCommand(3, 40, 50, vecs, 0, 10);
+    pattern = entity.getDirectCommand(3, 0, 50, vecs, 0, 10);
     dictArray.push(pattern);
     // 下向き扇状
     vecs = getPatternVector(9);
-    pattern = entity.getDirectCommand(2, 40, 50, vecs, 0, 13);
+    pattern = entity.getDirectCommand(2, 0, 50, vecs, 0, 13);
     dictArray.push(pattern);
     // 星型。
     vecs = getPatternVector(1);
-    pattern = entity.getDirectCommand(4, 40, 50, vecs, 1, 17);
+    pattern = entity.getDirectCommand(4, 0, 50, vecs, 1, 17);
     dictArray.push(pattern);
     // 十字型。
     vecs = getPatternVector(2);
@@ -150,11 +159,11 @@ class entity{
     dictArray.push(pattern);
 		// 1ずつずらす
 		vecs = getVector(arSinSeq(1, 2 * PI / 36, 36, 150, 300), arCosSeq(1, 2 * PI / 36, 36, 150, 300));
-		pattern = entity.getDirectCommand(0, 1, 180, vecs, 5, 80);
+		pattern = entity.getDirectCommand(0, 0, 180, vecs, 5, 80);
 		dictArray.push(pattern);
 		// 5ずつずらす
 		vecs = getVector(arSinSeq(6, 10 * PI / 36, 36, 150, 300), arCosSeq(6, 10 * PI / 36, 36, 150, 300));
-		pattern = entity.getDirectCommand(0, 1, 180, vecs, 4, 64);
+		pattern = entity.getDirectCommand(0, 0, 180, vecs, 4, 64);
 		dictArray.push(pattern);
 		// 7ずつずらす
 		vecs = getVector(arSinSeq(13, 14 * PI / 36, 36, 150, 300), arCosSeq(13, 14 * PI / 36, 36, 150, 300));
@@ -241,44 +250,37 @@ class constantFlow extends flow{
   }
   initialize(_actor){
     //console.log('move start. %d', frameCount);
-    _actor.timer.reset(); // fromの位置から始まることが前提なので省略
+    _actor.timer.setting(this.actTime); // fromの位置から始まることが前提なので省略
 		//_actor.diffAngle = random(2 * PI); // 摂動角
-  }
-  getProgress(_actor){
-    let cnt = _actor.timer.getCnt();
-    if(cnt >= this.actTime){ return 1; }
-    return cnt / this.actTime;
   }
   execute(_actor){
     _actor.timer.step(); // stepはこっちに書くのが普通じゃん？
-    let progress = this.getProgress(_actor);
+    let prg = _actor.timer.getProgress();
     // イージングかけるならここ。
     // なお今回actorごとに異なるconstantFlowを与えているのでこっちもちで・・それは邪道かなぁ。
     // いわゆる法ベクトルを装備できるので、それ使って簡単に・・ねぇ？
 
-    if(progress < 1){ progress = constantFlow.easing(8, progress); }
+    if(prg < 1){ prg = constantFlow.easing(8, prg); }
 
-    let newX = map(progress, 0, 1, this.from.x, this.to.x);
-    let newY = map(progress, 0, 1, this.from.y, this.to.y);
+    let newX = map(prg, 0, 1, this.from.x, this.to.x);
+    let newY = map(prg, 0, 1, this.from.y, this.to.y);
 		// ここ。
 		//newX += 30 * sin(2 * PI * progress) * cos(_actor.diffAngle);
 		//newY += 30 * sin(2 * PI * progress) * sin(_actor.diffAngle);
 		//_actor.diffAngle += (random(1) < 0.5 ? 0.03 : -0.03);
 
     _actor.setPos(newX, newY);
-    let newHue = map(progress, 0, 1, this.fromHue, this.toHue);
+    let newHue = map(prg, 0, 1, this.fromHue, this.toHue);
     _actor.changeColor(newHue, 100);
     _actor.currentHue = newHue; // hueの更新
-    if(progress === 1){
+    if(prg === 1){
       _actor.setState(COMPLETED);
-      //console.log('move complete. %d', frameCount)
     } // 終了命令忘れた
   }
   setting(v1, v2, actTime, h1, h2){ // セット関数
     this.from = createVector(v1.x, v1.y);
     this.to = createVector(v2.x, v2.y);
     this.fromHue = h1;
-    //if(h1 === 100){ this.fromHue = 0; }
     this.toHue = h2;
     this.actTime = actTime;
   }
@@ -297,45 +299,67 @@ class constantFlow extends flow{
 
 // ディレイ
 // 指定したインターバルごとに個々のあれをactiveさせる（allのメソッドを使う）
+// 今からやること：anchorの演技終了をconvertの条件にする
 class commandDelay extends flow{
   constructor(){
     super();
-    //this.actorArray = actorArray;
     this.delay = 1; // 可変
   }
   initialize(_actor){
     console.log("Delay %d", frameCount);
     this.delay = _actor.commandArray[_actor.currentIndex]['delay'];
-    _actor.timer.reset();
+    _actor.timer.setting(_actor.troop.length * this.delay);
   }
   execute(_actor){
-    _actor.timer.step();
-    let cnt = _actor.timer.getCnt();
-    //if(cnt % this.interval === 0){ _actor.command(this.actorArray[Math.floor(cnt / this.interval) - 1]); }
-    //if(cnt === this.actorArray.length * this.interval){
-    if(cnt % this.delay === 0){ _actor.command(_actor.troop[Math.floor(cnt / this.delay) - 1]); }
-    if(cnt === _actor.troop.length * this.delay){
+    let prg = _actor.timer.getProgress();
+    if(prg < 1){
+      _actor.timer.step();
+      let cnt = _actor.timer.getCnt();
+      if(cnt % this.delay === 0){ _actor.command(_actor.troop[Math.floor(cnt / this.delay) - 1]); }
+    }else{
+      if(_actor.anchor.isActive){ return; } // anchorがactiveの間はconvertしない
       _actor.setState(COMPLETED);
-      //_actor.shiftCommand(); // 次の命令
     }
   }
   convert(_actor){
-    _actor.currentFlow = this.convertList[2];
+    if(_actor.getPauseTime() > 0){
+      _actor.currentFlow = this.convertList[2];
+    }else{
+      console.log('complete. %d', frameCount);
+      let flag = _actor.shiftCommand(); // 次の命令
+      _actor.currentFlow = this.convertList[flag];
+    }
   }
 }
 
 // まとめて指示
+// 今からやること：anchorの演技終了をconvertの条件にする
 class commandAll extends flow{
   constructor(){
     super();
   }
-  initialize(_actor){ console.log("All %d", frameCount); }
+  initialize(_actor){
+    console.log("All %d", frameCount);
+    _actor.timer.setting(1);
+  }
   execute(_actor){
-    _actor.troop.forEach(function(a){ _actor.command(a); }) // troopの各メンバーに命令
-    _actor.setState(COMPLETED);
+    let prg = _actor.timer.getProgress();
+    if(prg < 1){
+      _actor.timer.step();
+      _actor.troop.forEach(function(a){ _actor.command(a); }) // troopの各メンバーに命令
+    }else{
+      if(_actor.anchor.isActive){ return; } // anchorがactiveの間はconvertしない
+      _actor.setState(COMPLETED);
+    }
   }
   convert(_actor){
-    _actor.currentFlow = this.convertList[2];
+    if(_actor.getPauseTime() > 0){
+      _actor.currentFlow = this.convertList[2];
+    }else{
+      console.log('complete. %d', frameCount);
+      let flag = _actor.shiftCommand(); // 次の命令
+      _actor.currentFlow = this.convertList[flag];
+    }
   }
 }
 // commandは辞書の配列を使っていろいろ指示するもの（その中にはactivateも入っている）
@@ -349,24 +373,18 @@ class waiting extends flow{
     this.pauseTime = 0; // 可変にする
   }
   initialize(_actor){
-    _actor.timer.reset();
-    this.pauseTime = _actor.commandArray[_actor.currentIndex]['pauseTime']; // 辞書から決定
+    this.pauseTime = _actor.getPauseTime();
+    _actor.timer.setting(this.pauseTime);
   }
   execute(_actor){
-    //if(this.finalActor.isActive){ return; }
-    if(_actor.anchor.isActive){ return; } // アンカーが演技中の時は何もしない
     _actor.timer.step();
     if(_actor.timer.getCnt() === this.pauseTime){ _actor.setState(COMPLETED); }
-    //console.log('execute.');
   }
   convert(_actor){
     console.log('complete. %d', frameCount);
     let flag = _actor.shiftCommand(); // 次の命令
-    //let delay = _actor.commandArray[_actor.currentIndex]['delay']; // 0がdelayなしの意味
-    //if(delay > 0){ _actor.currentFlow = this.convertList[0]; } // delayかけるときは0番
-    //else{ _actor.currentFlow = this.convertList[1]; } // かけないときは1番
     _actor.currentFlow = this.convertList[flag];
-  }  // delayはcommanderのプロパティ
+  }
 }
 
 // アクター
@@ -386,9 +404,11 @@ class actor{
     if(!this.isActive){ return; }
     if(this.state === IDLE){
       this.idleAction();
-    }else if(this.state === IN_PROGRESS){
+    }
+    if(this.state === IN_PROGRESS){
       this.in_progressAction();
-    }else if(this.state === COMPLETED){
+    }
+    if(this.state === COMPLETED){
       this.completeAction();
     }
   }
@@ -547,6 +567,9 @@ class commander extends actor{
     this.currentIndex = index; // せってい
     let delay = this.commandArray[this.currentIndex]['delay'];
     return (delay > 0 ? 0 : 1); // delay>0なら0を返す. でなければ1を返す。
+  }
+  getPauseTime(){
+    return this.commandArray[this.currentIndex]['pauseTime'];
   }
   command(member){
     // targetというか各メンバーに
