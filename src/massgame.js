@@ -297,30 +297,25 @@ class constantFlow extends flow{
   }
 }
 
-// ディレイ
-// 指定したインターバルごとに個々のあれをactiveさせる（allのメソッドを使う）
-// 今からやること：anchorの演技終了をconvertの条件にする
-class commandDelay extends flow{
+class commandAct extends flow{
   constructor(){
     super();
-    this.delay = 1; // 可変
   }
   initialize(_actor){
-    console.log("Delay %d", frameCount);
-    this.delay = _actor.commandArray[_actor.currentIndex]['delay'];
-    _actor.timer.setting(_actor.troop.length * this.delay);
+    _actor.timer.setting(1); // ここでやることはタイマーのセットだけね。
   }
   execute(_actor){
     let prg = _actor.timer.getProgress();
     if(prg < 1){
       _actor.timer.step();
-      let cnt = _actor.timer.getCnt();
-      if(cnt % this.delay === 0){ _actor.command(_actor.troop[Math.floor(cnt / this.delay) - 1]); }
+      this.command(_actor); // commandの内容。ディレイか、一斉か。
     }else{
       if(_actor.anchor.isActive){ return; } // anchorがactiveの間はconvertしない
       _actor.setState(COMPLETED);
     }
   }
+  command(_actor){}
+  // convertの内容が全く一緒。
   convert(_actor){
     if(_actor.getPauseTime() > 0){
       _actor.currentFlow = this.convertList[2];
@@ -332,36 +327,32 @@ class commandDelay extends flow{
   }
 }
 
-// まとめて指示
-// 今からやること：anchorの演技終了をconvertの条件にする
-class commandAll extends flow{
+// Delayはタイミングをずらして指示
+class commandDelay extends commandAct{
+  constructor(){
+    super();
+    this.delay = 1;
+  }
+  initialize(_actor){
+    this.delay = _actor.commandArray[_actor.currentIndex]['delay'];
+    _actor.timer.setting(_actor.troop.length * this.delay);
+  }
+  command(_actor){
+    let cnt = _actor.timer.getCnt();
+    if(cnt % this.delay === 0){ _actor.command(_actor.troop[Math.floor(cnt / this.delay) - 1]); }
+  }
+}
+
+// Allはまとめて指示
+class commandAll extends commandAct{
   constructor(){
     super();
   }
-  initialize(_actor){
-    console.log("All %d", frameCount);
-    _actor.timer.setting(1);
-  }
-  execute(_actor){
-    let prg = _actor.timer.getProgress();
-    if(prg < 1){
-      _actor.timer.step();
-      _actor.troop.forEach(function(a){ _actor.command(a); }) // troopの各メンバーに命令
-    }else{
-      if(_actor.anchor.isActive){ return; } // anchorがactiveの間はconvertしない
-      _actor.setState(COMPLETED);
-    }
-  }
-  convert(_actor){
-    if(_actor.getPauseTime() > 0){
-      _actor.currentFlow = this.convertList[2];
-    }else{
-      console.log('complete. %d', frameCount);
-      let flag = _actor.shiftCommand(); // 次の命令
-      _actor.currentFlow = this.convertList[flag];
-    }
+  command(_actor){
+    _actor.troop.forEach(function(a){ _actor.command(a); }) // troopの各メンバーに命令
   }
 }
+
 // commandは辞書の配列を使っていろいろ指示するもの（その中にはactivateも入っている）
 
 // 待機命令
