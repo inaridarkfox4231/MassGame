@@ -4,24 +4,8 @@ let all; // 全体
 let backgroundColor;
 let hueSet; // カラーパレット
 
-// 主な変更点：
-// 現在SPANTIME及びWAITSPANとなっているところをactTime, pauseTimeとしてパターンのプロパティに追加。
-
-// step1: counterにlimit機能を持たせてprogress(0～1)を返すようにする
-// step2: massCellにfromHueとtoHueをもたせてfromHue=0が初期値でtoHueはcommandの際に与えられる
-// step3: counterが返すprogressを元にしてcurrentHue計算されるのでin_progressの際にその色にチェンジする
-// なお今回saturationはいじらないので注意
-// 背景色はanchorのhueに対し50%のsaturationでcommanderが変化させる。・・・
-// あるいはconstantHueをカスタマイズしてカラーレールの機能を持たせてもいいけど。その場合、
-// currentHueのみでよくなるよね。ただsettingもいじらないといけない。
-
-// あともうひとつ。カラーコントロールでwaitingのときコントローラも止まるようにしてね。
-
 const COLOR_NUM = 7;
 
-//const INTERVAL = 3; // delayのinterval. // 可変にしてみる
-//const SPANTIME = 60; // 演技にかかる時間
-//const WAITSPAN = 60; // 全員演技終わってから再スタートまでのspan
 const SIZE = 36; // 変えられるのかどうか知らない。知らないけど。
 
 const IDLE = 0;
@@ -42,27 +26,7 @@ function draw(){
   background(backgroundColor);
   all.update();
   all.draw();
-  // デバッグ用
-  /*push();
-  fill('red');
-  rect(0, 0, 40, 40);
-  fill('blue')
-  rect(0, 40, 40, 40);
-  fill(0);
-  text('stop', 10, 20);
-  text('start', 10, 60);
-  pop();*/
 }
-
-// デバッグ用
-/*
-function mouseClicked(){
-  if(mouseX < 40 && mouseY < 80){
-    if(mouseY < 40){ noLoop(); }
-    else{ loop(); }
-    return;
-  }
-}*/
 
 class counter{
   constructor(){
@@ -122,64 +86,89 @@ class entity{
     let dictArray = [];
     // まず中心にぎゅっ。
     let vecs = getVector(constSeq(300, SIZE), constSeq(300, SIZE));
-    let pattern = entity.getDirectCommand(0, 30, 60, vecs, 7, 2);
+    let pattern = entity.getDirectCommand(0, 40, 60, vecs, 7, 2);
     dictArray.push(pattern);
     // まずは右下かぎ型.
     vecs = getPatternVector(10);
-    pattern = entity.getDirectCommand(2, 40, 60, vecs, 7, 5);
+    pattern = entity.getDirectCommand(2, 40, 40, vecs, 7, 5);
     dictArray.push(pattern);
     // 次に正方形.
     vecs = getPatternVector(0);
-    pattern = entity.getDirectCommand(4, 50, 60, vecs, 0, 10);
+    pattern = entity.getDirectCommand(3, 40, 50, vecs, 0, 10);
     dictArray.push(pattern);
     // 下向き扇状
     vecs = getPatternVector(9);
-    pattern = entity.getDirectCommand(2, 40, 60, vecs, 0, 13);
+    pattern = entity.getDirectCommand(2, 40, 50, vecs, 0, 13);
     dictArray.push(pattern);
     // 星型。
     vecs = getPatternVector(1);
-    pattern = entity.getDirectCommand(4, 50, 70, vecs, 1, 17);
+    pattern = entity.getDirectCommand(4, 40, 50, vecs, 1, 17);
     dictArray.push(pattern);
     // 十字型。
     vecs = getPatternVector(2);
-    pattern = entity.getDirectCommand(3, 50, 70, vecs, 1, 26);
+    pattern = entity.getDirectCommand(2, 40, 40, vecs, 1, 26);
     dictArray.push(pattern);
     // 三角形。
     vecs = getPatternVector(3);
-    pattern = entity.getDirectCommand(2, 50, 70, vecs, 2, 35);
+    pattern = entity.getDirectCommand(1, 40, 50, vecs, 2, 35);
     dictArray.push(pattern);
     // 右向き扇状
     vecs = getPatternVector(7);
-    pattern = entity.getDirectCommand(2, 50, 60, vecs, 2, 43);
+    pattern = entity.getDirectCommand(2, 40, 50, vecs, 2, 43);
     dictArray.push(pattern);
     // ひし形4つ
     vecs = getPatternVector(4);
-    pattern = entity.getDirectCommand(4, 50, 70, vecs, 3, 52);
+    pattern = entity.getDirectCommand(2, 30, 50, vecs, 3, 52);
     dictArray.push(pattern);
     // 左向き扇状
     vecs = getPatternVector(8);
-    pattern = entity.getDirectCommand(2, 50, 60, vecs, 3, 58);
+    pattern = entity.getDirectCommand(2, 40, 50, vecs, 3, 58);
     dictArray.push(pattern);
     // 六角形
     vecs = getPatternVector(5);
-    pattern = entity.getDirectCommand(4, 50, 60, vecs, 4, 64);
+    pattern = entity.getDirectCommand(2, 30, 50, vecs, 4, 64);
     dictArray.push(pattern);
     // たて直線
     vecs = getVector(constSeq(300, 36), arSeq(125, 10, 36));
-    pattern = entity.getDirectCommand(3, 50, 60, vecs, 4, 72);
+    pattern = entity.getDirectCommand(2, 50, 60, vecs, 4, 72);
     dictArray.push(pattern);
     // らせん
     vecs = getPatternVector(6);
-    pattern = entity.getDirectCommand(2, 50, 50, vecs, 5, 80);
+    pattern = entity.getDirectCommand(1, 50, 50, vecs, 5, 80);
     dictArray.push(pattern);
     // よこ直線
     vecs = getVector(arSeq(125, 10, 36), constSeq(300, 36));
-    pattern = entity.getDirectCommand(3, 50, 60, vecs, 5, 90);
+    pattern = entity.getDirectCommand(1, 50, 50, vecs, 5, 90);
     dictArray.push(pattern);
     // 最後は円形配置
-    vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 200, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 200, 300));
-    pattern = entity.getDirectCommand(2, 30, 60, vecs, 6, 100);
+    vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 150, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 150, 300));
+    pattern = entity.getDirectCommand(1, 50, 50, vecs, 6, 100);
     dictArray.push(pattern);
+		// 1ずつずらす
+		vecs = getVector(arSinSeq(1, 2 * PI / 36, 36, 150, 300), arCosSeq(1, 2 * PI / 36, 36, 150, 300));
+		pattern = entity.getDirectCommand(0, 1, 180, vecs, 5, 80);
+		dictArray.push(pattern);
+		// 5ずつずらす
+		vecs = getVector(arSinSeq(6, 10 * PI / 36, 36, 150, 300), arCosSeq(6, 10 * PI / 36, 36, 150, 300));
+		pattern = entity.getDirectCommand(0, 1, 180, vecs, 4, 64);
+		dictArray.push(pattern);
+		// 7ずつずらす
+		vecs = getVector(arSinSeq(13, 14 * PI / 36, 36, 150, 300), arCosSeq(13, 14 * PI / 36, 36, 150, 300));
+		pattern = entity.getDirectCommand(0, 1, 180, vecs, 3, 52);
+		dictArray.push(pattern);
+		// 11ずつずらす
+		vecs = getVector(arSinSeq(24, 22 * PI / 36, 36, 150, 300), arCosSeq(24, 22 * PI / 36, 36, 150, 300));
+		pattern = entity.getDirectCommand(0, 1, 180, vecs, 2, 35);
+		dictArray.push(pattern);
+		// 13ずつずらす
+		vecs = getVector(arSinSeq(37, 26 * PI / 36, 36, 150, 300), arCosSeq(37, 26 * PI / 36, 36, 150, 300));
+		pattern = entity.getDirectCommand(0, 1, 180, vecs, 1, 17);
+		dictArray.push(pattern);
+		// 17ずつずらす
+		vecs = getVector(arSinSeq(54, 34 * PI / 36, 36, 150, 300), arCosSeq(54, 34 * PI / 36, 36, 150, 300));
+		pattern = entity.getDirectCommand(0, 1, 180, vecs, 0, 10);
+		dictArray.push(pattern);
+
     return dictArray;
   }
   static getDirectCommand(delay, pauseTime, actTime, infoVectorArray, figureId, nextHue){
@@ -249,11 +238,11 @@ class constantFlow extends flow{
   initialize(_actor){
     //console.log('move start. %d', frameCount);
     _actor.timer.reset(); // fromの位置から始まることが前提なので省略
+		//_actor.diffAngle = random(2 * PI); // 摂動角
   }
   getProgress(_actor){
     let cnt = _actor.timer.getCnt();
     if(cnt >= this.actTime){ return 1; }
-    _actor.diffAngle = random(2 * PI);
     return cnt / this.actTime;
   }
   execute(_actor){
@@ -263,15 +252,14 @@ class constantFlow extends flow{
     // なお今回actorごとに異なるconstantFlowを与えているのでこっちもちで・・それは邪道かなぁ。
     // いわゆる法ベクトルを装備できるので、それ使って簡単に・・ねぇ？
 
-    if(progress < 1){ progress = constantFlow.easing(0, progress); }
+    if(progress < 1){ progress = constantFlow.easing(8, progress); }
 
     let newX = map(progress, 0, 1, this.from.x, this.to.x);
     let newY = map(progress, 0, 1, this.from.y, this.to.y);
-
-    // ここ。
-		newX += 10 * sin(2 * PI * progress) * cos(_actor.diffAngle);
-		newY += 10 * sin(2 * PI * progress) * sin(_actor.diffAngle);
-		_actor.diffAngle += (random(1) < 0.5 ? 0.05 : -0.05);
+		// ここ。
+		//newX += 30 * sin(2 * PI * progress) * cos(_actor.diffAngle);
+		//newY += 30 * sin(2 * PI * progress) * sin(_actor.diffAngle);
+		//_actor.diffAngle += (random(1) < 0.5 ? 0.03 : -0.03);
 
     _actor.setPos(newX, newY);
     let newHue = map(progress, 0, 1, this.fromHue, this.toHue);
@@ -286,7 +274,7 @@ class constantFlow extends flow{
     this.from = createVector(v1.x, v1.y);
     this.to = createVector(v2.x, v2.y);
     this.fromHue = h1;
-    if(h1 === 100){ this.fromHue = 0; }
+    //if(h1 === 100){ this.fromHue = 0; }
     this.toHue = h2;
     this.actTime = actTime;
   }
@@ -333,14 +321,11 @@ class commandDelay extends flow{
 class commandAll extends flow{
   constructor(){
     super();
-    //this.actorArray = actorArray;
   }
   initialize(_actor){ console.log("All %d", frameCount); }
   execute(_actor){
     _actor.troop.forEach(function(a){ _actor.command(a); }) // troopの各メンバーに命令
-    //this.actorArray.forEach(function(a){ _actor.command(a); }) // commandはあとで実装する
     _actor.setState(COMPLETED);
-    //_actor.shiftCommand(); // 次の命令
   }
 }
 // commandは辞書の配列を使っていろいろ指示するもの（その中にはactivateも入っている）
@@ -351,7 +336,6 @@ class commandAll extends flow{
 class waiting extends flow{
   constructor(){
     super();
-    //this.finalActor = finalActor; // commanderのanchorプロパティとして参照
     this.pauseTime = 0; // 可変にする
   }
   initialize(_actor){
@@ -368,13 +352,9 @@ class waiting extends flow{
   convert(_actor){
     console.log('complete. %d', frameCount);
     _actor.shiftCommand(); // 次の命令
-    //console.log(_actor.commandArray);
     let delay = _actor.commandArray[_actor.currentIndex]['delay']; // 0がdelayなしの意味
     if(delay > 0){ _actor.currentFlow = this.convertList[0]; } // delayかけるときは0番
     else{ _actor.currentFlow = this.convertList[1]; } // かけないときは1番
-    //console.log(_actor.currentFlow);
-    //if(_actor.delay){ _actor.currentFlow = this.convertList[0]; }
-    //else{ _actor.currentFlow = this.convertList[1]; } // delayかけるときは0, そうでなければ1に渡す
   }  // delayはcommanderのプロパティ
 }
 
@@ -386,7 +366,6 @@ class actor{
     this.timer = new counter();
     this.isActive = false;
     this.state = IDLE;
-    this.diffAngle = 0; // 摂動. 加減が難しいな。
   }
   activate(){ this.isActive = true; }
   inActivate(){ this.isActive = false; }
@@ -399,7 +378,6 @@ class actor{
     }else if(this.state === IN_PROGRESS){
       this.in_progressAction();
     }else if(this.state === COMPLETED){
-      //console.log(this.isActive);
       this.completeAction();
     }
   }
@@ -422,9 +400,9 @@ class massCell extends actor{
   constructor(f = undefined, colorId, figureId = 0){
     super(f);
     this.pos = createVector(f.from.x, f.from.y); // またポインタ渡してるよこの馬鹿・・・・
-    //console.log('initialize of massCell');
     this.visual = new figure(colorId, figureId); // 色は変わるけどね
     this.currentHue = 0; // 現在のhue.
+		//this.diffAngle = 0; // イージング用
   }
   changeColor(newHue, newSaturation){
     this.visual.changeColor(newHue, newSaturation);
@@ -438,7 +416,6 @@ class massCell extends actor{
   completeAction(){
     this.setState(IDLE);
     this.inActivate(); // convertせずに待機に戻る
-    //console.log(this.pos);
   }
   display(){
     this.visual.display(this.pos);
@@ -450,10 +427,8 @@ class figure{
   constructor(colorId, figureId){
     this.myColor = color(hueSet[colorId], 100, 100);
     this.figureId = figureId;
-    //console.log('initialize of figure');
     this.graphic = createGraphics(40, 40);
     this.rotation = 0;
-    //console.log("234");
     figure.setGraphic(this.graphic, this.myColor, figureId);
   }
   reset(){
@@ -480,7 +455,6 @@ class figure{
     gr.clear();
     gr.noStroke();
     gr.fill(myColor);
-    //console.log('setGraphic');
     if(figureId === 0){
       // 正方形
       gr.rect(10, 10, 20, 20);
@@ -547,7 +521,6 @@ class commander extends actor{
     super(f);
     this.commandArray = []; // 辞書の配列。constantFlowの位置決定などに関する情報が入っている。順繰りに・・
     this.currentIndex = 0; // 演技の番号みたいなやつ
-    //this.delay = false; // 該当する演技がdelayかどうか。
     this.troop = troop; // メインアクターの配列(troop)
     this.anchor = this.troop[this.troop.length - 1]; // アンカー（最後に演技する人）
   }
@@ -560,7 +533,6 @@ class commander extends actor{
   }
   shiftCommand(){
     let index = (this.currentIndex + 1) % this.commandArray.length;
-    //if(this.commandArray[index]['delay']){ this.delay = true; }else{ this.delay = false; }
     this.currentIndex = index; // せってい
   }
   command(member){
@@ -587,7 +559,6 @@ class commander extends actor{
     }else{
       // ダイレクト指示
       v = vecs[member.index];
-      //console.log(v);
     }
     member.currentFlow.setting(member.pos, v, dict['actTime'], member.currentHue, dict['nextHue']); // fromを現在位置、toを目的地に設定
     member.changeFigure(dict['figureId']); // 姿を変える
@@ -617,7 +588,6 @@ function constSeq(c, n){
 function jointSeq(arrayOfArray){
   // 全部繋げる
   let array = arrayOfArray[0];
-  //console.log(array);
   for(let i = 1; i < arrayOfArray.length; i++){
     array = array.concat(arrayOfArray[i]);
   }
