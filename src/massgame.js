@@ -526,9 +526,9 @@ class commander extends actor{
     vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 150, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 150, 300));
     pattern = commander.getDirectCommand(1, 0, 50, vecs, 6, 100);
     dictArray.push(pattern);
-		// 1ずつずらす
-		vecs = getVector(arSinSeq(1, 2 * PI / 36, 36, 150, 300), arCosSeq(1, 2 * PI / 36, 36, 150, 300));
-		pattern = commander.getDirectCommand(0, 0, 180, vecs, 5, 80);
+	  // 1ずつずらす
+	  vecs = getVector(arSinSeq(1, 2 * PI / 36, 36, 150, 300), arCosSeq(1, 2 * PI / 36, 36, 150, 300));
+	  pattern = commander.getDirectCommand(0, 0, 180, vecs, 5, 80);
 		dictArray.push(pattern);
 		// 5ずつずらす
 		vecs = getVector(arSinSeq(6, 10 * PI / 36, 36, 150, 300), arCosSeq(6, 10 * PI / 36, 36, 150, 300));
