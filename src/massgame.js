@@ -1,6 +1,6 @@
 'use strict';
 
-let all; // 全体
+let conductor; // 指揮者
 let backgroundColor;
 let hueSet; // カラーパレット
 
@@ -18,14 +18,15 @@ function setup(){
   colorMode(HSB, 100);
   backgroundColor = color(0, 40, 100);
   hueSet = [0, 10, 17, 35, 52, 64, 80];
-  all = new entity();
-  all.initialize();
+  let _flow = new preparation(); // 最初の準備用フロー
+  conductor = new commander(_flow); // 最初のフローを登録
+  conductor.activate(); // activateすればすべてが動き出す。みんなactorだった・・・
 }
 
 function draw(){
   background(backgroundColor);
-  all.update();
-  all.draw();
+  conductor.update();
+  conductor.display();
 }
 
 class counter{
@@ -46,182 +47,6 @@ class counter{
   }
 }
 
-// 統括する存在
-class entity{
-  constructor(){
-    this.flows = [];
-    this.actors = [];
-  }
-  initialize(){
-    // SIZE個のあれ。
-    let vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 200, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 200, 300));
-    // これで初期位置が(300, 300)になる。
-    for(let i = 0; i < SIZE; i++){ this.flows.push(new constantFlow(vecs[i], createVector(300, 300), 60, 0, 0)); }
-    for(let i = 0; i < SIZE; i++){ this.actors.push(new massCell(this.flows[i], 0, 0)); }
-    // commanderの準備として一連のflowとあとtroopを準備する
-    let commandAllFlow = new commandAll(); // 引数をなくす
-    let commandDelayFlow = new commandDelay();
-    let waitFlow = new waiting();
-    let troop = []; // 演技者の集団
-    for(let i = 0; i < SIZE; i++){ troop.push(all.actors[i]); }
-    // commanderを生成(最初の命令がdelayなのでdelayからスタート)
-    let cmder = new commander(commandAllFlow, troop);
-    let dictArray = entity.getCommandArray();
-    cmder.setCommandArray(dictArray);
-    this.actors.push(cmder); // 忘れてた. ていうかこれ上のやつに含めちゃまずいね。
-
-    // 接続
-    waitFlow.addFlow(commandDelayFlow); // 0番にディレイ
-    waitFlow.addFlow(commandAllFlow);
-    commandDelayFlow.addFlow(commandDelayFlow);
-    commandDelayFlow.addFlow(commandAllFlow);
-    commandDelayFlow.addFlow(waitFlow);
-    commandAllFlow.addFlow(commandDelayFlow);
-    commandAllFlow.addFlow(commandAllFlow); // 行先を追加
-    commandAllFlow.addFlow(waitFlow);
-    // activateするのは設定した後なのでcommanderだけactivateする。つまりIDLEかつnon-Activeってことね。
-    // 命令を受けてconstantFlowが完成した直後にactivateされるという仕掛け。
-    cmder.activate();
-    console.log('MassGame start. %d', frameCount);
-  }
-  update(){
-    this.actors.forEach(function(a){ a.update(); })
-  }
-  draw(){
-    this.actors.forEach(function(a){ a.display(); })
-  }
-  activateAll(){
-    this.actors.forEach(function(a){ a.activate(); })
-  }
-  static getCommandArray(){
-    // dictの配列を返す。これはcommanderにセットされる。
-    // あとは然るべき規則でここに書き込めば勝手にパターンを次々と演じてくれる。
-    let dictArray = [];
-    // まず中心にぎゅっ。
-    let vecs = getVector(constSeq(300, SIZE), constSeq(300, SIZE));
-    let pattern = entity.getDirectCommand(0, 0, 60, vecs, 7, 2);
-    dictArray.push(pattern);
-    // まずは右下かぎ型.
-    vecs = getPatternVector(10);
-    pattern = entity.getDirectCommand(2, 0, 40, vecs, 7, 5);
-    dictArray.push(pattern);
-    // 次に正方形.
-    vecs = getPatternVector(0);
-    pattern = entity.getDirectCommand(3, 0, 50, vecs, 0, 10);
-    dictArray.push(pattern);
-    // 下向き扇状
-    vecs = getPatternVector(9);
-    pattern = entity.getDirectCommand(2, 0, 50, vecs, 0, 13);
-    dictArray.push(pattern);
-    // 星型。
-    vecs = getPatternVector(1);
-    pattern = entity.getDirectCommand(4, 0, 50, vecs, 1, 17);
-    dictArray.push(pattern);
-    // 十字型。
-    vecs = getPatternVector(2);
-    pattern = entity.getDirectCommand(2, 40, 40, vecs, 1, 26);
-    dictArray.push(pattern);
-    // 三角形。
-    vecs = getPatternVector(3);
-    pattern = entity.getDirectCommand(1, 40, 50, vecs, 2, 35);
-    dictArray.push(pattern);
-    // 右向き扇状
-    vecs = getPatternVector(7);
-    pattern = entity.getDirectCommand(2, 40, 50, vecs, 2, 43);
-    dictArray.push(pattern);
-    // ひし形4つ
-    vecs = getPatternVector(4);
-    pattern = entity.getDirectCommand(2, 30, 50, vecs, 3, 52);
-    dictArray.push(pattern);
-    // 左向き扇状
-    vecs = getPatternVector(8);
-    pattern = entity.getDirectCommand(2, 40, 50, vecs, 3, 58);
-    dictArray.push(pattern);
-    // 六角形
-    vecs = getPatternVector(5);
-    pattern = entity.getDirectCommand(2, 30, 50, vecs, 4, 64);
-    dictArray.push(pattern);
-    // たて直線
-    vecs = getVector(constSeq(300, 36), arSeq(125, 10, 36));
-    pattern = entity.getDirectCommand(2, 50, 60, vecs, 4, 72);
-    dictArray.push(pattern);
-    // らせん
-    vecs = getPatternVector(6);
-    pattern = entity.getDirectCommand(1, 50, 50, vecs, 5, 80);
-    dictArray.push(pattern);
-    // よこ直線
-    vecs = getVector(arSeq(125, 10, 36), constSeq(300, 36));
-    pattern = entity.getDirectCommand(1, 50, 50, vecs, 5, 90);
-    dictArray.push(pattern);
-    // 最後は円形配置
-    vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 150, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 150, 300));
-    pattern = entity.getDirectCommand(1, 50, 50, vecs, 6, 100);
-    dictArray.push(pattern);
-		// 1ずつずらす
-		vecs = getVector(arSinSeq(1, 2 * PI / 36, 36, 150, 300), arCosSeq(1, 2 * PI / 36, 36, 150, 300));
-		pattern = entity.getDirectCommand(0, 0, 180, vecs, 5, 80);
-		dictArray.push(pattern);
-		// 5ずつずらす
-		vecs = getVector(arSinSeq(6, 10 * PI / 36, 36, 150, 300), arCosSeq(6, 10 * PI / 36, 36, 150, 300));
-		pattern = entity.getDirectCommand(0, 0, 180, vecs, 4, 64);
-		dictArray.push(pattern);
-		// 7ずつずらす
-		vecs = getVector(arSinSeq(13, 14 * PI / 36, 36, 150, 300), arCosSeq(13, 14 * PI / 36, 36, 150, 300));
-		pattern = entity.getDirectCommand(0, 1, 180, vecs, 3, 52);
-		dictArray.push(pattern);
-		// 11ずつずらす
-		vecs = getVector(arSinSeq(24, 22 * PI / 36, 36, 150, 300), arCosSeq(24, 22 * PI / 36, 36, 150, 300));
-		pattern = entity.getDirectCommand(0, 1, 180, vecs, 2, 35);
-		dictArray.push(pattern);
-		// 13ずつずらす
-		vecs = getVector(arSinSeq(37, 26 * PI / 36, 36, 150, 300), arCosSeq(37, 26 * PI / 36, 36, 150, 300));
-		pattern = entity.getDirectCommand(0, 1, 180, vecs, 1, 17);
-		dictArray.push(pattern);
-		// 17ずつずらす
-		vecs = getVector(arSinSeq(54, 34 * PI / 36, 36, 150, 300), arCosSeq(54, 34 * PI / 36, 36, 150, 300));
-		pattern = entity.getDirectCommand(0, 1, 180, vecs, 0, 10);
-		dictArray.push(pattern);
-
-    return dictArray;
-  }
-  static getDirectCommand(delay, pauseTime, actTime, infoVectorArray, figureId, nextHue){
-    let dict = {};
-    entity.preSetting(dict, delay, pauseTime, actTime, figureId, nextHue);
-    dict['mode'] = 'direct';
-    dict['infoVectorArray'] = infoVectorArray;
-    return dict;
-  }
-  static getRectCommand(delay, pauseTime, actTime, left, up, right, down, figureId, nextHue){
-    let dict = {};
-    entity.preSetting(dict, delay, pauseTime, actTime, figureId, nextHue);
-    dict['mode'] = 'rect'
-    dict['infoVectorArray'] = getVector([left, right], [up, down]);
-    return dict;
-  }
-  static getEllipseCommand(delay, pauseTime, actTime, centerX, centerY, radiusX, radiusY, figureId, nextHue){
-    let dict = {};
-    entity.preSetting(dict, delay, pauseTime, actTime, figureId, nextHue);
-    dict['mode'] = 'ellipse';
-    dict['infoVectorArray'] = getVector([centerX, radiusX], [centerY, radiusY]);
-    return dict;
-  }
-  static getBandCommand(delay, pauseTime, actTime, minRadius, maxRadius, minAngle, maxAngle, centerX, centerY, figureId, nextHue){
-    let dict = {};
-    entity.preSetting(dict, delay, pauseTime, actTime, figureId, nextHue);
-    dict['mode'] = 'band';
-    dict['infoVectorArray'] = getVector([minRadius, minAngle, centerX], [maxRadius, maxAngle, centerY]);
-    return dict;
-  }
-  static preSetting(dict, delay, pauseTime, actTime, figureId, nextHue){
-    //if(delayValue > 0){ dict['delay'] = true; dict['interval'] = delayValue; }else{ dict['delay'] = false; }
-    dict['delay'] = delay; // intervalは廃止してdelayの0か正かで判断することに。
-    dict['pauseTime'] = pauseTime;
-    dict['actTime'] = actTime;
-    dict['figureId'] = figureId;
-    dict['nextHue'] = nextHue;
-  }
-}
-
 // 作業フロー
 class flow{
   constructor(){
@@ -239,7 +64,7 @@ class flow{
 // コンスタントフロー
 // 移動表現 // massCellのデフォルト
 class constantFlow extends flow{
-  constructor(from, to, actTime, fromHue, toHue){
+  constructor(from, to, actTime = 60, fromHue = 0, toHue = 0){
     // fromからtoまでspanTime数のフレームで移動しますよ
     super();
     this.from = createVector(from.x, from.y);
@@ -278,6 +103,7 @@ class constantFlow extends flow{
     } // 終了命令忘れた
   }
   setting(v1, v2, actTime, h1, h2){ // セット関数
+    //console.log("%d %d %d %d", v1.x, v1.y, v2.x, v2.y);
     this.from = createVector(v1.x, v1.y);
     this.to = createVector(v2.x, v2.y);
     this.fromHue = h1;
@@ -375,6 +201,41 @@ class waiting extends flow{
     console.log('complete. %d', frameCount);
     let flag = _actor.shiftCommand(); // 次の命令
     _actor.currentFlow = this.convertList[flag];
+  }
+}
+
+// 準備のためのフロー（一番最初にcommanderに設定する）
+class preparation extends flow{
+  constructor(){
+    super();
+  }
+  execute(_actor){
+    // SIZE個の, 始点が円周上にあるベクトルを作る
+    let vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 200, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 200, 300));
+    // troopにメンバーを登録
+    for(let i = 0; i < SIZE; i++){
+      let _flow = new constantFlow(vecs[i], createVector(300, 300));
+      let member = new massCell(_flow, 0, 0);
+      _actor.registMember(member);
+    }
+    // アンカーを設定
+    _actor.anchor = _actor.troop[_actor.troop.length - 1]; // 最終演技者
+    // このあとのcommanderのこなすフローを生成してさらに接続を設定
+    let cDelay = new commandDelay();
+    let cAll = new commandAll();
+    let wait = new waiting();
+    cDelay.convertList = [cDelay, cAll, wait];
+    cAll.convertList = [cDelay, cAll, wait];
+    wait.convertList = [cDelay, cAll];
+    // commandArrayは既に作ってある
+    this.convertList = [cDelay, cAll]; // 自身のconvertList.
+    _actor.setState(COMPLETED); // 準備完了。うん、しっくりくるね！
+  }
+  convert(_actor){
+    // delayの値に応じて最初のパフォーマンスを決める
+    let delay = _actor.commandArray[_actor.currentIndex]['delay'];
+    if(delay > 0){ _actor.currentFlow = this.convertList[0]; }
+    else{ _actor.currentFlow = this.convertList[1]; }
   }
 }
 
@@ -539,17 +400,23 @@ class figure{
 
 // 司令塔
 class commander extends actor{
-  constructor(f = undefined, troop){
+  constructor(f = undefined){
     super(f);
-    this.commandArray = []; // 辞書の配列。constantFlowの位置決定などに関する情報が入っている。順繰りに・・
+    this.commandArray = commander.getCommandArray(); // すべての演技に関する情報を有する辞書配列
     this.currentIndex = 0; // 演技の番号みたいなやつ
-    this.troop = troop; // メインアクターの配列(troop)
-    this.anchor = this.troop[this.troop.length - 1]; // アンカー（最後に演技する人）
+    //this.troop = troop; // メインアクターの配列(troop)
+    //this.anchor = this.troop[this.troop.length - 1]; // アンカー（最後に演技する人）
+    this.troop = []; // メンバーの配列
+    this.anchor; // 最後に演技を終える人
+  }
+  registMember(_actor){  // メンバー登録
+    this.troop.push(_actor);
   }
   setCommandArray(dictArray){
     this.commandArray = dictArray;
   }
   in_progressAction(){
+    this.troop.forEach(function(a){ a.update(); })
     this.currentFlow.execute(this);
     backgroundColor = color(this.anchor.currentHue, 40, 100);
   }
@@ -562,10 +429,14 @@ class commander extends actor{
   getPauseTime(){
     return this.commandArray[this.currentIndex]['pauseTime'];
   }
+  display(){
+    this.troop.forEach(function(a){ a.display(); })
+  }
   command(member){
     // targetというか各メンバーに
     let dict = this.commandArray[this.currentIndex];
     let vecs = dict['infoVectorArray'];
+    //console.log(vecs);
     let mode = dict['mode'];
     let v; // toに相当するベクトル
     if(mode === 'rect'){ // 矩形
@@ -585,11 +456,138 @@ class commander extends actor{
       v = createVector(vecs[2].x + r * cos(theta), vecs[2].y + r * sin(theta));
     }else{
       // ダイレクト指示
-      v = vecs[member.index];
+      v = vecs[member.index - 1]; // indexの番号が1つずれているので注意する
     }
     member.currentFlow.setting(member.pos, v, dict['actTime'], member.currentHue, dict['nextHue']); // fromを現在位置、toを目的地に設定
     member.changeFigure(dict['figureId']); // 姿を変える
     member.activate(); // 起動。
+  }
+  static getCommandArray(){
+    // dictの配列を返す。これはcommanderにセットされる。
+    // あとは然るべき規則でここに書き込めば勝手にパターンを次々と演じてくれる。
+    let dictArray = [];
+    // まず中心にぎゅっ。
+    let vecs = getVector(constSeq(300, SIZE), constSeq(300, SIZE));
+    let pattern = commander.getDirectCommand(0, 0, 60, vecs, 7, 2);
+    dictArray.push(pattern);
+    // まずは右下かぎ型.
+    vecs = getPatternVector(10);
+    pattern = commander.getDirectCommand(2, 0, 40, vecs, 7, 5);
+    dictArray.push(pattern);
+    // 次に正方形.
+    vecs = getPatternVector(0);
+    pattern = commander.getDirectCommand(3, 0, 50, vecs, 0, 10);
+    dictArray.push(pattern);
+    // 下向き扇状
+    vecs = getPatternVector(9);
+    pattern = commander.getDirectCommand(2, 0, 50, vecs, 0, 13);
+    dictArray.push(pattern);
+    // 星型。
+    vecs = getPatternVector(1);
+    pattern = commander.getDirectCommand(4, 0, 50, vecs, 1, 17);
+    dictArray.push(pattern);
+    // 十字型。
+    vecs = getPatternVector(2);
+    pattern = commander.getDirectCommand(2, 0, 40, vecs, 1, 26);
+    dictArray.push(pattern);
+    // 三角形。
+    vecs = getPatternVector(3);
+    pattern = commander.getDirectCommand(1, 0, 50, vecs, 2, 35);
+    dictArray.push(pattern);
+    // 右向き扇状
+    vecs = getPatternVector(7);
+    pattern = commander.getDirectCommand(2, 0, 50, vecs, 2, 43);
+    dictArray.push(pattern);
+    // ひし形4つ
+    vecs = getPatternVector(4);
+    pattern = commander.getDirectCommand(2, 0, 50, vecs, 3, 52);
+    dictArray.push(pattern);
+    // 左向き扇状
+    vecs = getPatternVector(8);
+    pattern = commander.getDirectCommand(2, 0, 50, vecs, 3, 58);
+    dictArray.push(pattern);
+    // 六角形
+    vecs = getPatternVector(5);
+    pattern = commander.getDirectCommand(2, 0, 50, vecs, 4, 64);
+    dictArray.push(pattern);
+    // たて直線
+    vecs = getVector(constSeq(300, 36), arSeq(125, 10, 36));
+    pattern = commander.getDirectCommand(2, 0, 60, vecs, 4, 72);
+    dictArray.push(pattern);
+    // らせん
+    vecs = getPatternVector(6);
+    pattern = commander.getDirectCommand(1, 0, 50, vecs, 5, 80);
+    dictArray.push(pattern);
+    // よこ直線
+    vecs = getVector(arSeq(125, 10, 36), constSeq(300, 36));
+    pattern = commander.getDirectCommand(1, 0, 50, vecs, 5, 90);
+    dictArray.push(pattern);
+    // 最後は円形配置
+    vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 150, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 150, 300));
+    pattern = commander.getDirectCommand(1, 0, 50, vecs, 6, 100);
+    dictArray.push(pattern);
+		// 1ずつずらす
+		vecs = getVector(arSinSeq(1, 2 * PI / 36, 36, 150, 300), arCosSeq(1, 2 * PI / 36, 36, 150, 300));
+		pattern = commander.getDirectCommand(0, 0, 180, vecs, 5, 80);
+		dictArray.push(pattern);
+		// 5ずつずらす
+		vecs = getVector(arSinSeq(6, 10 * PI / 36, 36, 150, 300), arCosSeq(6, 10 * PI / 36, 36, 150, 300));
+		pattern = commander.getDirectCommand(0, 0, 180, vecs, 4, 64);
+		dictArray.push(pattern);
+		// 7ずつずらす
+		vecs = getVector(arSinSeq(13, 14 * PI / 36, 36, 150, 300), arCosSeq(13, 14 * PI / 36, 36, 150, 300));
+		pattern = commander.getDirectCommand(0, 0, 180, vecs, 3, 52);
+		dictArray.push(pattern);
+		// 11ずつずらす
+		vecs = getVector(arSinSeq(24, 22 * PI / 36, 36, 150, 300), arCosSeq(24, 22 * PI / 36, 36, 150, 300));
+		pattern = commander.getDirectCommand(0, 0, 180, vecs, 2, 35);
+		dictArray.push(pattern);
+		// 13ずつずらす
+		vecs = getVector(arSinSeq(37, 26 * PI / 36, 36, 150, 300), arCosSeq(37, 26 * PI / 36, 36, 150, 300));
+		pattern = commander.getDirectCommand(0, 0, 180, vecs, 1, 17);
+		dictArray.push(pattern);
+		// 17ずつずらす
+		vecs = getVector(arSinSeq(54, 34 * PI / 36, 36, 150, 300), arCosSeq(54, 34 * PI / 36, 36, 150, 300));
+		pattern = commander.getDirectCommand(0, 0, 180, vecs, 0, 10);
+		dictArray.push(pattern);
+
+    return dictArray;
+  }
+  static getDirectCommand(delay, pauseTime, actTime, infoVectorArray, figureId, nextHue){
+    let dict = {};
+    commander.preSetting(dict, delay, pauseTime, actTime, figureId, nextHue);
+    dict['mode'] = 'direct';
+    dict['infoVectorArray'] = infoVectorArray;
+    return dict;
+  }
+  static getRectCommand(delay, pauseTime, actTime, left, up, right, down, figureId, nextHue){
+    let dict = {};
+    commander.preSetting(dict, delay, pauseTime, actTime, figureId, nextHue);
+    dict['mode'] = 'rect'
+    dict['infoVectorArray'] = getVector([left, right], [up, down]);
+    return dict;
+  }
+  static getEllipseCommand(delay, pauseTime, actTime, centerX, centerY, radiusX, radiusY, figureId, nextHue){
+    let dict = {};
+    commander.preSetting(dict, delay, pauseTime, actTime, figureId, nextHue);
+    dict['mode'] = 'ellipse';
+    dict['infoVectorArray'] = getVector([centerX, radiusX], [centerY, radiusY]);
+    return dict;
+  }
+  static getBandCommand(delay, pauseTime, actTime, minRadius, maxRadius, minAngle, maxAngle, centerX, centerY, figureId, nextHue){
+    let dict = {};
+    commander.preSetting(dict, delay, pauseTime, actTime, figureId, nextHue);
+    dict['mode'] = 'band';
+    dict['infoVectorArray'] = getVector([minRadius, minAngle, centerX], [maxRadius, maxAngle, centerY]);
+    return dict;
+  }
+  static preSetting(dict, delay, pauseTime, actTime, figureId, nextHue){
+    //if(delayValue > 0){ dict['delay'] = true; dict['interval'] = delayValue; }else{ dict['delay'] = false; }
+    dict['delay'] = delay; // intervalは廃止してdelayの0か正かで判断することに。
+    dict['pauseTime'] = pauseTime;
+    dict['actTime'] = actTime;
+    dict['figureId'] = figureId;
+    dict['nextHue'] = nextHue;
   }
 }
 
