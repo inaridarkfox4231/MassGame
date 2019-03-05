@@ -526,30 +526,30 @@ class commander extends actor{
     vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 150, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 150, 300));
     pattern = commander.getDirectCommand(1, 0, 50, vecs, 6, 100);
     dictArray.push(pattern);
-	  // 1ずつずらす
-	  vecs = getVector(arSinSeq(1, 2 * PI / 36, 36, 150, 300), arCosSeq(1, 2 * PI / 36, 36, 150, 300));
-	  pattern = commander.getDirectCommand(0, 0, 180, vecs, 5, 80);
-		dictArray.push(pattern);
-		// 5ずつずらす
-		vecs = getVector(arSinSeq(6, 10 * PI / 36, 36, 150, 300), arCosSeq(6, 10 * PI / 36, 36, 150, 300));
-		pattern = commander.getDirectCommand(0, 0, 180, vecs, 4, 64);
-		dictArray.push(pattern);
-		// 7ずつずらす
-		vecs = getVector(arSinSeq(13, 14 * PI / 36, 36, 150, 300), arCosSeq(13, 14 * PI / 36, 36, 150, 300));
-		pattern = commander.getDirectCommand(0, 0, 180, vecs, 3, 52);
-		dictArray.push(pattern);
-		// 11ずつずらす
-		vecs = getVector(arSinSeq(24, 22 * PI / 36, 36, 150, 300), arCosSeq(24, 22 * PI / 36, 36, 150, 300));
-		pattern = commander.getDirectCommand(0, 0, 180, vecs, 2, 35);
-		dictArray.push(pattern);
-		// 13ずつずらす
-		vecs = getVector(arSinSeq(37, 26 * PI / 36, 36, 150, 300), arCosSeq(37, 26 * PI / 36, 36, 150, 300));
-		pattern = commander.getDirectCommand(0, 0, 180, vecs, 1, 17);
-		dictArray.push(pattern);
-		// 17ずつずらす
-		vecs = getVector(arSinSeq(54, 34 * PI / 36, 36, 150, 300), arCosSeq(54, 34 * PI / 36, 36, 150, 300));
-		pattern = commander.getDirectCommand(0, 0, 180, vecs, 0, 10);
-		dictArray.push(pattern);
+    // 1ずつずらす
+    vecs = getVector(arSinSeq(1, 2 * PI / 36, 36, 150, 300), arCosSeq(1, 2 * PI / 36, 36, 150, 300));
+    pattern = commander.getDirectCommand(0, 0, 180, vecs, 5, 80);
+    dictArray.push(pattern);
+    // 5ずつずらす
+    vecs = getVector(arSinSeq(6, 10 * PI / 36, 36, 150, 300), arCosSeq(6, 10 * PI / 36, 36, 150, 300));
+    pattern = commander.getDirectCommand(0, 0, 180, vecs, 4, 64);
+    dictArray.push(pattern);
+    // 7ずつずらす
+    vecs = getVector(arSinSeq(13, 14 * PI / 36, 36, 150, 300), arCosSeq(13, 14 * PI / 36, 36, 150, 300));
+    pattern = commander.getDirectCommand(0, 0, 180, vecs, 3, 52);
+    dictArray.push(pattern);
+    // 11ずつずらす
+    vecs = getVector(arSinSeq(24, 22 * PI / 36, 36, 150, 300), arCosSeq(24, 22 * PI / 36, 36, 150, 300));
+    pattern = commander.getDirectCommand(0, 0, 180, vecs, 2, 35);
+    dictArray.push(pattern);
+    // 13ずつずらす
+    vecs = getVector(arSinSeq(37, 26 * PI / 36, 36, 150, 300), arCosSeq(37, 26 * PI / 36, 36, 150, 300));
+    pattern = commander.getDirectCommand(0, 0, 180, vecs, 1, 17);
+    dictArray.push(pattern);
+    // 17ずつずらす
+    vecs = getVector(arSinSeq(54, 34 * PI / 36, 36, 150, 300), arCosSeq(54, 34 * PI / 36, 36, 150, 300));
+    pattern = commander.getDirectCommand(0, 0, 180, vecs, 0, 10);
+    dictArray.push(pattern);
 
     return dictArray;
   }
