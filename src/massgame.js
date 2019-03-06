@@ -169,15 +169,15 @@ class preparation extends flow{
     this.convertList = [cDelay, cAll]; // 自身のconvertList.
     _actor.setState(COMPLETED); // 準備完了。うん、しっくりくるね！
   }
-    execute(_actor){
+  execute(_actor){
     this.timer.step();
     this.graphic.background(5, 40, 100);
     this.graphic.textSize(40);
     this.graphic.fill(0);
     let cnt = this.timer.getCnt();
     if(Math.floor(cnt / 16) % 2 === 0){
-    this.graphic.strokeWeight(0.5);
-    this.graphic.text("Now loading!", 80, 100);
+      this.graphic.strokeWeight(0.5);
+      this.graphic.text("Now loading!", 80, 100);
     }
     let prg = this.timer.getProgress();
     this.graphic.fill(5, 100, 100);
@@ -189,7 +189,7 @@ class preparation extends flow{
     this.graphic.rect(50, 220, 300, 20);
     //this.graphic.text((Math.floor(prg * 100)).toString() + "％", 150, 200);
     if(prg === 1){ _actor.setState(COMPLETED); }
-    }
+  }
   display(_actor){
     image(this.graphic, 100, 100);
   }
