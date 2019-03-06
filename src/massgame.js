@@ -95,10 +95,10 @@ class constantFlow extends flow{
 
     let newX = map(prg, 0, 1, this.from.x, this.to.x);
     let newY = map(prg, 0, 1, this.from.y, this.to.y);
-		// ここ。
-		//newX += 30 * sin(2 * PI * progress) * cos(_actor.diffAngle); // 30のところは揺れ幅
-		//newY += 30 * sin(2 * PI * progress) * sin(_actor.diffAngle);
-		//_actor.diffAngle += (random(1) < 0.5 ? 0.03 : -0.03); // 0.03のところは摂動方向の変化角
+    // ここ。
+    //newX += 30 * sin(2 * PI * progress) * cos(_actor.diffAngle); // 30のところは揺れ幅
+    //newY += 30 * sin(2 * PI * progress) * sin(_actor.diffAngle);
+    //_actor.diffAngle += (random(1) < 0.5 ? 0.03 : -0.03); // 0.03のところは摂動方向の変化角
     _actor.setPos(newX, newY);
 
     if(prg === 1){
@@ -142,10 +142,10 @@ class constantFlow extends flow{
 class preparation extends flow{
   constructor(){
     super();
-		this.timer = new counter();
-		this.timer.setting(120);
-		this.graphic = createGraphics(400, 400);
-		this.graphic.colorMode(HSB, 100);
+    this.timer = new counter();
+    this.timer.setting(120);
+    this.graphic = createGraphics(400, 400);
+    this.graphic.colorMode(HSB, 100);
   }
   initialize(_actor){
     // SIZE個の, 始点が円周上にあるベクトルを作る
@@ -169,27 +169,27 @@ class preparation extends flow{
     this.convertList = [cDelay, cAll]; // 自身のconvertList.
     _actor.setState(COMPLETED); // 準備完了。うん、しっくりくるね！
   }
-	execute(_actor){
-		this.timer.step();
-		this.graphic.background(5, 40, 100);
-		this.graphic.textSize(40);
-		this.graphic.fill(0);
-		let cnt = this.timer.getCnt();
-		if(Math.floor(cnt / 16) % 2 === 0){
-			this.graphic.strokeWeight(0.5);
-		  this.graphic.text("Now loading!", 80, 100);
-		}
-		let prg = this.timer.getProgress();
-		this.graphic.fill(5, 100, 100);
-		this.graphic.noStroke();
-		this.graphic.rect(50, 220, Math.floor(300 * prg), 20);
-		this.graphic.stroke(0);
-		this.graphic.strokeWeight(2.0);
-		this.graphic.noFill();
-		this.graphic.rect(50, 220, 300, 20);
-		//this.graphic.text((Math.floor(prg * 100)).toString() + "％", 150, 200);
-		if(prg === 1){ _actor.setState(COMPLETED); }
-	}
+    execute(_actor){
+    this.timer.step();
+    this.graphic.background(5, 40, 100);
+    this.graphic.textSize(40);
+    this.graphic.fill(0);
+    let cnt = this.timer.getCnt();
+    if(Math.floor(cnt / 16) % 2 === 0){
+    this.graphic.strokeWeight(0.5);
+    this.graphic.text("Now loading!", 80, 100);
+    }
+    let prg = this.timer.getProgress();
+    this.graphic.fill(5, 100, 100);
+    this.graphic.noStroke();
+    this.graphic.rect(50, 220, Math.floor(300 * prg), 20);
+    this.graphic.stroke(0);
+    this.graphic.strokeWeight(2.0);
+    this.graphic.noFill();
+    this.graphic.rect(50, 220, 300, 20);
+    //this.graphic.text((Math.floor(prg * 100)).toString() + "％", 150, 200);
+    if(prg === 1){ _actor.setState(COMPLETED); }
+    }
   display(_actor){
     image(this.graphic, 100, 100);
   }
@@ -219,9 +219,9 @@ class commandAct extends flow{
       _actor.setState(COMPLETED);
     }
   }
-	display(_actor){
-		_actor.troop.forEach(function(a){ a.display(); })
-	}
+  display(_actor){
+    _actor.troop.forEach(function(a){ a.display(); })
+  }
   command(_actor){}
   convert(_actor){
     if(_actor.getPauseTime() > 0){
@@ -283,9 +283,9 @@ class waiting extends flow{
     let flag = _actor.shiftCommand(); // 次の命令
     _actor.currentFlow = this.convertList[flag];
   }
-	display(_actor){
-		_actor.troop.forEach(function(a){ a.display(); })
-	}
+  display(_actor){
+    _actor.troop.forEach(function(a){ a.display(); })
+  }
 }
 
 // アクター
@@ -334,7 +334,7 @@ class massCell extends actor{
     this.pos = createVector(f.from.x, f.from.y);
     this.visual = new figure(colorId, figureId);
     this.currentHue = 0; // 現在のhue.
-		//this.diffAngle = 0; // イージング用
+    //this.diffAngle = 0; // イージング用
   }
   changeColor(newHue, newSaturation){
     this.visual.changeColor(newHue, newSaturation);
