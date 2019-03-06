@@ -1,6 +1,7 @@
 'use strict';
+// 違う、それはsalamander.
 
-let conductor; // 指揮者
+let _commander; // 指揮官
 let backgroundColor;
 let hueSet; // カラーパレット
 
@@ -19,16 +20,20 @@ function setup(){
   backgroundColor = color(0, 40, 100);
   hueSet = [0, 10, 17, 35, 52, 64, 80];
   let _flow = new preparation(); // 最初の準備用フロー
-  conductor = new commander(_flow); // 最初のフローを登録
-  conductor.activate(); // activateすればすべてが動き出す。みんなactorだった・・・
+  _commander = new commander(_flow); // 最初のフローを登録
+  _commander.activate(); // activateすればすべてが動き出す。みんなactorだった・・・
 }
 
 function draw(){
-  background(backgroundColor);
-  conductor.update();
-  conductor.display();
+  background(backgroundColor); // backgroundColorはcommander指揮下のanchorの色に応じて変化させています
+  _commander.update(); // commander指揮下のtroopに属する各actorの、主に位置を変化させています
+  _commander.display(); // 各actorのイメージを描画しています
+  // そのはずだったんですが、_commanderって要するにentityなんですよね・・ということはここは
+  // stateごとのdisplayingになるわけで、そうなるとたとえば準備中のアニメーションとかも可能になるんですよね。
+  // で、やってみようと思って作ったのがNow loading ですね～～（どうなんだこれ）
 }
 
+// commander,及び指揮下のactorたちのこなすタスクの時間管理を担っています。progress計算機能を搭載しました。
 class counter{
   constructor(){
     this.cnt = 0;
@@ -59,51 +64,48 @@ class flow{
   initialize(_actor){} // 最初にやらせたいことを書いてください
   execute(_actor){ _actor.setState(COMPLETED); }
   convert(_actor){ _actor.currentFlow = this.convertList[0]; } // convertの条件を書いてください(デフォルトはまんま)
+	display(_actor){} // flowのdisplayは直接displayを操作する内容となる。
+  // 従来の矢印べたーっていうのはrenderと名付けて別の関数を用意することになりそうな流れですね・・
 }
 
-// コンスタントフロー
-// 移動表現 // massCellのデフォルト
+// コンスタントフロー. 出発地点と到着地点が明確で、その間をきっかり規定されたフレーム数で移動させます。
 class constantFlow extends flow{
   constructor(from, to, actTime = 60, fromHue = 0, toHue = 0){
     // fromからtoまでspanTime数のフレームで移動しますよ
     super();
     this.from = createVector(from.x, from.y);
     this.to = createVector(to.x, to.y);
-    this.fromHue = fromHue;
+    this.fromHue = fromHue; // 色情報を追加しました。オブジェクトの色を変化させます。
     this.toHue = toHue;
     this.actTime = actTime; // 基本60.
   }
   initialize(_actor){
-    //console.log('move start. %d', frameCount);
     _actor.timer.setting(this.actTime); // fromの位置から始まることが前提なので省略
-		//_actor.diffAngle = random(2 * PI); // 摂動角
+		//_actor.diffAngle = random(2 * PI); // 摂動角。これを使うと動きに揺らぎが生じてかわいくなる、でもビシッと決めたいのでやめました。
   }
   execute(_actor){
     _actor.timer.step(); // stepはこっちに書くのが普通じゃん？
     let prg = _actor.timer.getProgress();
-    // イージングかけるならここ。
-    // なお今回actorごとに異なるconstantFlowを与えているのでこっちもちで・・それは邪道かなぁ。
-    // いわゆる法ベクトルを装備できるので、それ使って簡単に・・ねぇ？
 
-    if(prg < 1){ prg = constantFlow.easing(8, prg); }
+    let newHue = map(prg, 0, 1, this.fromHue, this.toHue); // しまった、progressに応じた色の変化・・先にやらなきゃだ。
+    _actor.changeColor(newHue, 100);
+    _actor.currentHue = newHue; // hueの更新
+
+    if(prg < 1){ prg = constantFlow.easing(8, prg); } // progressに応じたイージングをかけます。下記の0～8から好きなものを選べます。
 
     let newX = map(prg, 0, 1, this.from.x, this.to.x);
     let newY = map(prg, 0, 1, this.from.y, this.to.y);
 		// ここ。
-		//newX += 30 * sin(2 * PI * progress) * cos(_actor.diffAngle);
+		//newX += 30 * sin(2 * PI * progress) * cos(_actor.diffAngle); // 30のところは揺れ幅
 		//newY += 30 * sin(2 * PI * progress) * sin(_actor.diffAngle);
-		//_actor.diffAngle += (random(1) < 0.5 ? 0.03 : -0.03);
-
+		//_actor.diffAngle += (random(1) < 0.5 ? 0.03 : -0.03); // 0.03のところは摂動方向の変化角
     _actor.setPos(newX, newY);
-    let newHue = map(prg, 0, 1, this.fromHue, this.toHue);
-    _actor.changeColor(newHue, 100);
-    _actor.currentHue = newHue; // hueの更新
+
     if(prg === 1){
       _actor.setState(COMPLETED);
     } // 終了命令忘れた
   }
   setting(v1, v2, actTime, h1, h2){ // セット関数
-    //console.log("%d %d %d %d", v1.x, v1.y, v2.x, v2.y);
     this.from = createVector(v1.x, v1.y);
     this.to = createVector(v2.x, v2.y);
     this.fromHue = h1;
@@ -120,9 +122,86 @@ class constantFlow extends flow{
     else if(i === 6){ return log(x + 1) / log(2);  } // 対数的
     else if(i === 7){ return pow(x, 6); } // 鋭く！
     else if(i === 8){ return x * (3 * x - 2); } // おおきくバックからぎゅーん
+		else if(i === 9){ return 1 - Math.sqrt(1 - (x * x)); } // ゆっくりからの・・・・・・ぎゅんっっ
   }
 }
 
+// 準備のためのフロー（一番最初にcommanderに設定する）
+// まず、これはinitializeに書くべき内容。
+// これをきちんとinitializeに書くことによってexecuteのところが空く、
+// そうするとそこで色々できるようになる。たとえばオープニングアニメーションとか、タイトル表示とか、
+// つまりグラフィックを持たせてそれをdisplayするんだけどね。
+// 今commanderのdisplayってなってるところ、あそこ「actor全員表示ー！」で固定されてる。ここを、
+// 「flowのdisplay命令に従ってdisplay」と書き換える。そして、
+// commandDelayなりwaitなり、つまりwaitingとかもだけど、まあこの辺にdisplay命令でそれを書く。
+// そうすればpreparation中はpreparationの持ってるグラフィックを独自に描いていいことになるわけ。
+// なんならコンフィグ設定とかもできるよ。そういう自由度を獲得できる。
+// ・・・initializeに書き換えても普通に動くのめっちゃ草。
+// ・・・できた、やればできるもんねぇ。面白い。
+// まずい、executeでやるべき内容とdisplayでやるべき内容がごちゃごちゃだ・・分けなきゃ。。
+class preparation extends flow{
+  constructor(){
+    super();
+		this.timer = new counter();
+		this.timer.setting(120);
+		this.graphic = createGraphics(400, 400);
+		this.graphic.colorMode(HSB, 100);
+  }
+  initialize(_actor){
+    // SIZE個の, 始点が円周上にあるベクトルを作る
+    let vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 200, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 200, 300));
+    // troopにメンバーを登録
+    for(let i = 0; i < SIZE; i++){
+      let _flow = new constantFlow(vecs[i], createVector(300, 300));
+      let member = new massCell(_flow, 0, 0);
+      _actor.registMember(member);
+    }
+    // アンカーを設定
+    _actor.anchor = _actor.troop[_actor.troop.length - 1]; // 最終演技者
+    // このあとのcommanderのこなすフローを生成してさらに接続を設定
+    let cDelay = new commandDelay();
+    let cAll = new commandAll();
+    let wait = new waiting();
+    cDelay.convertList = [cDelay, cAll, wait];
+    cAll.convertList = [cDelay, cAll, wait];
+    wait.convertList = [cDelay, cAll];
+    // commandArrayは既に作ってある
+    this.convertList = [cDelay, cAll]; // 自身のconvertList.
+    _actor.setState(COMPLETED); // 準備完了。うん、しっくりくるね！
+  }
+	execute(_actor){
+		this.timer.step();
+		this.graphic.background(5, 40, 100);
+		this.graphic.textSize(40);
+		this.graphic.fill(0);
+		let cnt = this.timer.getCnt();
+		if(Math.floor(cnt / 16) % 2 === 0){
+			this.graphic.strokeWeight(0.5);
+		  this.graphic.text("Now loading!", 80, 100);
+		}
+		let prg = this.timer.getProgress();
+		this.graphic.fill(5, 100, 100);
+		this.graphic.noStroke();
+		this.graphic.rect(50, 220, Math.floor(300 * prg), 20);
+		this.graphic.stroke(0);
+		this.graphic.strokeWeight(2.0);
+		this.graphic.noFill();
+		this.graphic.rect(50, 220, 300, 20);
+		//this.graphic.text((Math.floor(prg * 100)).toString() + "％", 150, 200);
+		if(prg === 1){ _actor.setState(COMPLETED); }
+	}
+  display(_actor){
+    image(this.graphic, 100, 100);
+  }
+  convert(_actor){
+    // delayの値に応じて最初のパフォーマンスを決める
+    let delay = _actor.commandArray[_actor.currentIndex]['delay'];
+    if(delay > 0){ _actor.currentFlow = this.convertList[0]; }
+    else{ _actor.currentFlow = this.convertList[1]; }
+  }
+}
+
+// 以下のコマンドはcommander用です。javaなら_actorのところはcommander _actorと書くところです。
 class commandAct extends flow{
   constructor(){
     super();
@@ -131,7 +210,7 @@ class commandAct extends flow{
     _actor.timer.setting(1); // ここでやることはタイマーのセットだけね。
   }
   execute(_actor){
-    let prg = _actor.timer.getProgress();
+    let prg = _actor.timer.getProgress(); // commanderのprogress.
     if(prg < 1){
       _actor.timer.step();
       this.command(_actor); // commandの内容。ディレイか、一斉か。
@@ -140,14 +219,16 @@ class commandAct extends flow{
       _actor.setState(COMPLETED);
     }
   }
+	display(_actor){
+		_actor.troop.forEach(function(a){ a.display(); })
+	}
   command(_actor){}
-  // convertの内容が全く一緒。
   convert(_actor){
     if(_actor.getPauseTime() > 0){
-      _actor.currentFlow = this.convertList[2];
+      _actor.currentFlow = this.convertList[2]; // ポーズタイムはポーズが決まってから次の命令が下されるまでのインターバルです
     }else{
-      console.log('complete. %d', frameCount);
-      let flag = _actor.shiftCommand(); // 次の命令
+      console.log('complete. %d', frameCount); // ポーズタイムがない場合、即座に次の命令に移ります。
+      let flag = _actor.shiftCommand(); // flagはディレイをかけるかどうかの指定。
       _actor.currentFlow = this.convertList[flag];
     }
   }
@@ -202,41 +283,9 @@ class waiting extends flow{
     let flag = _actor.shiftCommand(); // 次の命令
     _actor.currentFlow = this.convertList[flag];
   }
-}
-
-// 準備のためのフロー（一番最初にcommanderに設定する）
-class preparation extends flow{
-  constructor(){
-    super();
-  }
-  execute(_actor){
-    // SIZE個の, 始点が円周上にあるベクトルを作る
-    let vecs = getVector(arSinSeq(0, 2 * PI / SIZE, SIZE, 200, 300), arCosSeq(0, 2 * PI / SIZE, SIZE, 200, 300));
-    // troopにメンバーを登録
-    for(let i = 0; i < SIZE; i++){
-      let _flow = new constantFlow(vecs[i], createVector(300, 300));
-      let member = new massCell(_flow, 0, 0);
-      _actor.registMember(member);
-    }
-    // アンカーを設定
-    _actor.anchor = _actor.troop[_actor.troop.length - 1]; // 最終演技者
-    // このあとのcommanderのこなすフローを生成してさらに接続を設定
-    let cDelay = new commandDelay();
-    let cAll = new commandAll();
-    let wait = new waiting();
-    cDelay.convertList = [cDelay, cAll, wait];
-    cAll.convertList = [cDelay, cAll, wait];
-    wait.convertList = [cDelay, cAll];
-    // commandArrayは既に作ってある
-    this.convertList = [cDelay, cAll]; // 自身のconvertList.
-    _actor.setState(COMPLETED); // 準備完了。うん、しっくりくるね！
-  }
-  convert(_actor){
-    // delayの値に応じて最初のパフォーマンスを決める
-    let delay = _actor.commandArray[_actor.currentIndex]['delay'];
-    if(delay > 0){ _actor.currentFlow = this.convertList[0]; }
-    else{ _actor.currentFlow = this.convertList[1]; }
-  }
+	display(_actor){
+		_actor.troop.forEach(function(a){ a.display(); })
+	}
 }
 
 // アクター
@@ -282,8 +331,8 @@ class actor{
 class massCell extends actor{
   constructor(f = undefined, colorId, figureId = 0){
     super(f);
-    this.pos = createVector(f.from.x, f.from.y); // またポインタ渡してるよこの馬鹿・・・・
-    this.visual = new figure(colorId, figureId); // 色は変わるけどね
+    this.pos = createVector(f.from.x, f.from.y);
+    this.visual = new figure(colorId, figureId);
     this.currentHue = 0; // 現在のhue.
 		//this.diffAngle = 0; // イージング用
   }
@@ -404,16 +453,11 @@ class commander extends actor{
     super(f);
     this.commandArray = commander.getCommandArray(); // すべての演技に関する情報を有する辞書配列
     this.currentIndex = 0; // 演技の番号みたいなやつ
-    //this.troop = troop; // メインアクターの配列(troop)
-    //this.anchor = this.troop[this.troop.length - 1]; // アンカー（最後に演技する人）
     this.troop = []; // メンバーの配列
     this.anchor; // 最後に演技を終える人
   }
   registMember(_actor){  // メンバー登録
     this.troop.push(_actor);
-  }
-  setCommandArray(dictArray){
-    this.commandArray = dictArray;
   }
   in_progressAction(){
     this.troop.forEach(function(a){ a.update(); })
@@ -430,13 +474,18 @@ class commander extends actor{
     return this.commandArray[this.currentIndex]['pauseTime'];
   }
   display(){
-    this.troop.forEach(function(a){ a.display(); })
+    //this.troop.forEach(function(a){ a.display(); })
+		this.currentFlow.display(this); // actorのdisplayはflowのdisplayに準拠するって感じかな。
   }
+  // graphicに貼り付けるのはrenderって別の関数にやってもらう必要がありそう。
+  // flowの画像の貼り付けもそんな感じになるんですかね・・
   command(member){
-    // targetというか各メンバーに
+    // 結局ランダム、なんかダサいってことで無くしちゃったからここもっとシンプルに出来るけど一応残しておく
+		// そういえばこのメソッドそのまま使ってpythonとかでもMassGameできたら面白そうだなって思った
+		// あっち変数宣言ないけど・・
+		// C++とかでビジュアル的な事ってどうやるんだろうな・・
     let dict = this.commandArray[this.currentIndex];
     let vecs = dict['infoVectorArray'];
-    //console.log(vecs);
     let mode = dict['mode'];
     let v; // toに相当するベクトル
     if(mode === 'rect'){ // 矩形
@@ -582,7 +631,6 @@ class commander extends actor{
     return dict;
   }
   static preSetting(dict, delay, pauseTime, actTime, figureId, nextHue){
-    //if(delayValue > 0){ dict['delay'] = true; dict['interval'] = delayValue; }else{ dict['delay'] = false; }
     dict['delay'] = delay; // intervalは廃止してdelayの0か正かで判断することに。
     dict['pauseTime'] = pauseTime;
     dict['actTime'] = actTime;
