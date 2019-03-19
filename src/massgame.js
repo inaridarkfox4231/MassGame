@@ -13,6 +13,10 @@ const IDLE = 0;
 const IN_PROGRESS = 1;
 const COMPLETED = 2;
 
+// 時間表示の設置。
+const timeCounter = document.createElement('div');
+document.body.appendChild(timeCounter);
+
 function setup(){
   createCanvas(600, 600);
   // palette HSBでやってみたい
@@ -25,12 +29,16 @@ function setup(){
 }
 
 function draw(){
+  const start = performance.now();
   background(backgroundColor); // backgroundColorはcommander指揮下のanchorの色に応じて変化させています
   _commander.update(); // commander指揮下のtroopに属する各actorの、主に位置を変化させています
   _commander.display(); // 各actorのイメージを描画しています
   // そのはずだったんですが、_commanderって要するにentityなんですよね・・ということはここは
   // stateごとのdisplayingになるわけで、そうなるとたとえば準備中のアニメーションとかも可能になるんですよね。
   // で、やってみようと思って作ったのがNow loading ですね～～（どうなんだこれ）
+  const end = performance.now();
+  const timeStr = (end - start).toPrecision(4);
+  timeCounter.innerText = `${timeStr}ms`;
 }
 
 // commander,及び指揮下のactorたちのこなすタスクの時間管理を担っています。progress計算機能を搭載しました。
